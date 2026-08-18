@@ -34,13 +34,6 @@ const db = mysql.createPool({
 // TESTE DA API
 // ======================================================
 
-app.get("/", (req, res) => {
-
-    res.json({
-        mensagem: "API da Tenda do Cuidar funcionando!"
-    });
-
-});
 
 
 // ======================================================
