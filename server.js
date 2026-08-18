@@ -73,12 +73,7 @@ async function testarBanco() {
 // =========================================================
 
 app.get("/", (req, res) => {
-
-    res.json({
-        sucesso: true,
-        mensagem: "API da Tenda do Cuidar funcionando!"
-    });
-
+    res.sendFile(path.join(__dirname, "index.html"));
 });
 
 
