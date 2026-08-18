@@ -4810,41 +4810,8 @@
         </div>
 
     </section>
-    <!-- =====================================================================
-     AVALIACAO — CADASTRO / PRÉ-ATENDIMENTO (MULTI-STEP FORM)
-===================================================================== -->
-    <section class="avaliacao" id="avaliacao">
-        <div class="container">
-            <div class="section-head center reveal">
-                <div class="eyebrow" style="justify-content:center;">Pré-atendimento</div>
-                <h2 class="section-title">Conte-nos um pouco <em>sobre a criança</em></h2>
-                <p class="section-lead">Algumas informações podem nos ajudar a compreender melhor o motivo do contato e
-                    orientar você sobre os próximos passos.</p>
-            </div>
 
-            <div class="form-shell reveal">
-                <div class="progress-track" id="progressTrack">
-                    <div class="progress-fill" id="progressFill"></div>
-                    <div class="progress-step active" data-step="1">
-                        <div class="circle">01</div><span class="label">Responsável</span>
-                    </div>
-                    <div class="progress-step" data-step="2">
-                        <div class="circle">02</div><span class="label">Criança</span>
-                    </div>
-                    <div class="progress-step" data-step="3">
-                        <div class="circle">03</div><span class="label">Desenvolvimento</span>
-                    </div>
-                    <div class="progress-step" data-step="4">
-                        <div class="circle">04</div><span class="label">Atendimento</span>
-                    </div>
-                    <div class="progress-step" data-step="5">
-                        <div class="circle">05</div><span class="label">Confirmação</span>
-                    </div>
-                </div>
-
-            </div>
-        </div>
-    </section>
+    
 
     <!-- =========================================================
      GALERIA - ESPAÇOS E ATENDIMENTOS
@@ -7055,7 +7022,7 @@
                                     nomeCrianca,
 
                                 observacoes:
-                                    observacoes || null
+                                    observacoes || ""
 
                             })
                         }
@@ -7928,7 +7895,7 @@ Agendamento realizado pelo site da Tenda do Cuidar.`;
                 15,
                 219,
                 largura - 30,
-                70,
+                55,
                 rosaClaro
             );
 
@@ -8166,15 +8133,18 @@ Agendamento realizado pelo site da Tenda do Cuidar.`;
                OBSERVAÇÕES
             ===================================================== */
 
-            if (dados.observacoes) {
+            let observacaoY =
+                245;
 
-                pdf.addPage();
+
+            if (dados.observacoes) {
 
                 tituloSecao(
                     "Observações",
-                    30,
+                    observacaoY,
                     rosa
                 );
+
 
                 const observacoes =
                     pdf.splitTextToSize(
@@ -8184,19 +8154,6 @@ Agendamento realizado pelo site da Tenda do Cuidar.`;
                         largura - 40
                     );
 
-                desenharCard(
-                    15,
-                    40,
-                    largura - 30,
-                    Math.min(
-                        180,
-                        Math.max(
-                            35,
-                            observacoes.length * 5 + 20
-                        )
-                    ),
-                    rosaClaro
-                );
 
                 pdf.setFont(
                     "helvetica",
@@ -8214,7 +8171,7 @@ Agendamento realizado pelo site da Tenda do Cuidar.`;
                 pdf.text(
                     observacoes,
                     20,
-                    55
+                    observacaoY + 8
                 );
 
             }
