@@ -20,10 +20,15 @@ const PORT = 3000;
 // =========================================================
 
 const db = mysql.createPool({
-    host: "localhost",
-    user: "root",
-    password: "0422",
-    database: "tenda_cuidar",
+    host: process.env.DB_HOST,
+    port: Number(process.env.DB_PORT || 20179),
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+
+    ssl: {
+        rejectUnauthorized: false
+    },
 
     waitForConnections: true,
     connectionLimit: 10,
