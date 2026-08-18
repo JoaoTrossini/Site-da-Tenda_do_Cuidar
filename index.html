@@ -8427,18 +8427,15 @@ Agendamento realizado pelo site da Tenda do Cuidar.`;
                OBSERVAÇÕES
             ===================================================== */
 
-            let observacaoY =
-                268;
-
-
             if (dados.observacoes) {
+
+                pdf.addPage();
 
                 tituloSecao(
                     "Observações",
-                    observacaoY,
+                    30,
                     rosa
                 );
-
 
                 const observacoes =
                     pdf.splitTextToSize(
@@ -8448,6 +8445,19 @@ Agendamento realizado pelo site da Tenda do Cuidar.`;
                         largura - 40
                     );
 
+                desenharCard(
+                    15,
+                    40,
+                    largura - 30,
+                    Math.min(
+                        180,
+                        Math.max(
+                            35,
+                            observacoes.length * 5 + 20
+                        )
+                    ),
+                    rosaClaro
+                );
 
                 pdf.setFont(
                     "helvetica",
@@ -8465,11 +8475,10 @@ Agendamento realizado pelo site da Tenda do Cuidar.`;
                 pdf.text(
                     observacoes,
                     20,
-                    observacaoY + 12
+                    55
                 );
 
             }
-
 
             /* =====================================================
                RODAPÉ
