@@ -769,7 +769,7 @@ app.post("/agendamentos", async (req, res) => {
 
                 )
 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'agendado')
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'reservado')
 
             `, [
 
