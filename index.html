@@ -3918,6 +3918,35 @@
             gap: 8px;
         }
 
+        .calendario-dia {
+            min-height: 42px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+
+        .calendario-dia.disponivel {
+            background: #dff5df;
+            color: #247a24;
+        }
+
+        .calendario-dia.indisponivel {
+            background: #f5dddd;
+            color: #a52a2a;
+            cursor: not-allowed;
+        }
+
+        .calendario-dia.selecionado {
+            background: #f2c94c;
+            color: #222;
+        }
+
+        .calendario-dia.vazio {
+            visibility: hidden;
+        }
+
 
         .dia-calendario {
             position: relative;
@@ -5906,810 +5935,846 @@
 
     <script>
 
-/* =========================================================
-            CONFIGURAÇÕES
-========================================================= */
+        /* =========================================================
+                    CONFIGURAÇÕES
+        ========================================================= */
 
-const API_URL = "https://site-da-tenda-do-cuidar-2.onrender.com";
-const WHATSAPP_NUMBER = "5511961447581";
-const THEME_KEY = "tenda-do-cuidar-theme";
+        const API_URL = "https://site-da-tenda-do-cuidar-2.onrender.com";
+        const WHATSAPP_NUMBER = "5511961447581";
+        const THEME_KEY = "tenda-do-cuidar-theme";
 
-let horarioSelecionado = null;
-
-
-/* =========================================================
-   UTILIDADES
-========================================================= */
-
-function formatarHora(hora) {
-
-    if (!hora) return "";
-
-    return String(hora).substring(0, 5);
-}
+        let horarioSelecionado = null;
 
 
-function formatarData(data) {
+        /* =========================================================
+           UTILIDADES
+        ========================================================= */
 
-    if (!data) return "";
+        function formatarHora(hora) {
 
-    const partes = data.split("-");
+            if (!hora) return "";
 
-    if (partes.length !== 3) {
-        return data;
-    }
-
-    return `${partes[2]}/${partes[1]}/${partes[0]}`;
-}
-
-
-function obterDataLocal(date) {
-
-    const ano = date.getFullYear();
-    const mes = String(date.getMonth() + 1).padStart(2, "0");
-    const dia = String(date.getDate()).padStart(2, "0");
-
-    return `${ano}-${mes}-${dia}`;
-}
-
-
-/* =========================================================
-   AGENDAMENTO
-========================================================= */
-
-const Agendamento = {
-
-    anoAtual: new Date().getFullYear(),
-    mesAtual: new Date().getMonth(),
-
-    init: function () {
-
-        const profissional =
-            document.getElementById("profissional");
-
-        const data =
-            document.getElementById("dataConsulta");
-
-        const btn =
-            document.getElementById("btnAgendar");
-
-        if (!profissional || !data || !btn) {
-
-            console.warn(
-                "Elementos do agendamento não encontrados."
-            );
-
-            return;
+            return String(hora).substring(0, 5);
         }
 
 
-        /* =====================================================
-           DATA MÍNIMA
-        ===================================================== */
+        function formatarData(data) {
 
-        const hoje = new Date();
+            if (!data) return "";
 
-        data.min = obterDataLocal(hoje);
+            const partes = data.split("-");
 
+            if (partes.length !== 3) {
+                return data;
+            }
 
-        /* =====================================================
-           BOTÕES DO CALENDÁRIO
-        ===================================================== */
-
-        const mesAnterior =
-            document.getElementById("mesAnterior");
-
-        const mesProximo =
-            document.getElementById("mesProximo");
+            return `${partes[2]}/${partes[1]}/${partes[0]}`;
+        }
 
 
-        if (mesAnterior) {
+        function obterDataLocal(date) {
 
-            mesAnterior.addEventListener(
-                "click",
-                () => {
+            const ano = date.getFullYear();
+            const mes = String(date.getMonth() + 1).padStart(2, "0");
+            const dia = String(date.getDate()).padStart(2, "0");
 
-                    this.mudarMes(-1);
+            return `${ano}-${mes}-${dia}`;
+        }
 
+
+
+        async function buscarDisponibilidadeData(
+            profissionalId,
+            data
+        ) {
+
+            try {
+
+                const resposta =
+                    await fetch(
+                        `${API_URL}/horarios/${profissionalId}/${data}`
+                    );
+
+                if (!resposta.ok) {
+                    return [];
                 }
-            );
+
+                const horarios =
+                    await resposta.json();
+
+                return Array.isArray(horarios)
+                    ? horarios
+                    : [];
+
+            } catch (erro) {
+
+                console.error(
+                    "Erro ao verificar disponibilidade:",
+                    erro
+                );
+
+                return [];
+
+            }
+
         }
+        /* =========================================================
+           AGENDAMENTO
+        ========================================================= */
 
+        const Agendamento = {
 
-        if (mesProximo) {
+            anoAtual: new Date().getFullYear(),
+            mesAtual: new Date().getMonth(),
 
-            mesProximo.addEventListener(
-                "click",
-                () => {
+            init: function () {
 
-                    this.mudarMes(1);
+                const profissional =
+                    document.getElementById("profissional");
 
+                const data =
+                    document.getElementById("dataConsulta");
+
+                const btn =
+                    document.getElementById("btnAgendar");
+
+                if (!profissional || !data || !btn) {
+
+                    console.warn(
+                        "Elementos do agendamento não encontrados."
+                    );
+
+                    return;
                 }
-            );
-        }
 
 
-        /* =====================================================
-           PROFISSIONAL
-        ===================================================== */
+                /* =====================================================
+                   DATA MÍNIMA
+                ===================================================== */
 
-        profissional.addEventListener(
-            "change",
-            () => {
+                const hoje = new Date();
 
-                horarioSelecionado = null;
+                data.min = obterDataLocal(hoje);
 
-                data.value = "";
 
-                this.atualizarResumo();
+                /* =====================================================
+                   BOTÕES DO CALENDÁRIO
+                ===================================================== */
 
-                carregarHorarios();
+                const mesAnterior =
+                    document.getElementById("mesAnterior");
+
+                const mesProximo =
+                    document.getElementById("mesProximo");
+
+
+                if (mesAnterior) {
+
+                    mesAnterior.addEventListener(
+                        "click",
+                        () => {
+
+                            this.mudarMes(-1);
+
+                        }
+                    );
+                }
+
+
+                if (mesProximo) {
+
+                    mesProximo.addEventListener(
+                        "click",
+                        () => {
+
+                            this.mudarMes(1);
+
+                        }
+                    );
+                }
+
+
+                /* =====================================================
+                   PROFISSIONAL
+                ===================================================== */
+
+                profissional.addEventListener(
+                    "change",
+                    () => {
+
+                        horarioSelecionado = null;
+
+                        data.value = "";
+
+                        this.atualizarResumo();
+
+                        carregarHorarios();
+
+                        this.renderizarCalendario();
+
+                    }
+                );
+
+
+                /* =====================================================
+                   DATA
+                ===================================================== */
+
+                data.addEventListener(
+                    "change",
+                    () => {
+
+                        horarioSelecionado = null;
+
+                        this.atualizarResumo();
+
+                        carregarHorarios();
+
+                        this.renderizarCalendario();
+
+                    }
+                );
+
+
+                /* =====================================================
+                   BOTÃO AGENDAR
+                ===================================================== */
+
+                btn.addEventListener(
+                    "click",
+                    realizarAgendamento
+                );
+
+
+                /* =====================================================
+                   INICIAR
+                ===================================================== */
+
+                carregarProfissionais();
 
                 this.renderizarCalendario();
 
-            }
-        );
+            },
 
 
-        /* =====================================================
-           DATA
-        ===================================================== */
+            /* =========================================================
+               MUDAR MÊS
+            ========================================================= */
 
-        data.addEventListener(
-            "change",
-            () => {
+            mudarMes: function (direcao) {
 
-                horarioSelecionado = null;
+                this.mesAtual += direcao;
 
-                this.atualizarResumo();
 
-                carregarHorarios();
+                if (this.mesAtual > 11) {
+
+                    this.mesAtual = 0;
+                    this.anoAtual++;
+
+                }
+
+
+                if (this.mesAtual < 0) {
+
+                    this.mesAtual = 11;
+                    this.anoAtual--;
+
+                }
+
 
                 this.renderizarCalendario();
 
-            }
-        );
+            },
 
 
-        /* =====================================================
-           BOTÃO AGENDAR
-        ===================================================== */
+            /* =========================================================
+               CALENDÁRIO
+            ========================================================= */
 
-        btn.addEventListener(
-            "click",
-            realizarAgendamento
-        );
+            renderizarCalendario: function () {
 
+                const container =
+                    document.getElementById(
+                        "calendarioDias"
+                    );
 
-        /* =====================================================
-           INICIAR
-        ===================================================== */
+                const titulo =
+                    document.getElementById(
+                        "mesAtual"
+                    );
 
-        carregarProfissionais();
 
-        this.renderizarCalendario();
+                if (!container || !titulo) {
+                    return;
+                }
 
-    },
 
+                const nomesMeses = [
 
-    /* =========================================================
-       MUDAR MÊS
-    ========================================================= */
+                    "Janeiro",
+                    "Fevereiro",
+                    "Março",
+                    "Abril",
+                    "Maio",
+                    "Junho",
+                    "Julho",
+                    "Agosto",
+                    "Setembro",
+                    "Outubro",
+                    "Novembro",
+                    "Dezembro"
 
-    mudarMes: function (direcao) {
+                ];
 
-        this.mesAtual += direcao;
 
+                titulo.textContent =
+                    `${nomesMeses[this.mesAtual]} ${this.anoAtual}`;
 
-        if (this.mesAtual > 11) {
 
-            this.mesAtual = 0;
-            this.anoAtual++;
+                container.innerHTML = "";
 
-        }
 
+                const primeiroDia =
+                    new Date(
+                        this.anoAtual,
+                        this.mesAtual,
+                        1
+                    );
 
-        if (this.mesAtual < 0) {
 
-            this.mesAtual = 11;
-            this.anoAtual--;
+                const ultimoDia =
+                    new Date(
+                        this.anoAtual,
+                        this.mesAtual + 1,
+                        0
+                    );
 
-        }
 
+                const quantidadeDias =
+                    ultimoDia.getDate();
 
-        this.renderizarCalendario();
 
-    },
+                const primeiroDiaSemana =
+                    primeiroDia.getDay();
 
 
-    /* =========================================================
-       CALENDÁRIO
-    ========================================================= */
+                /* =====================================================
+                   ESPAÇOS ANTES DO PRIMEIRO DIA
+                ===================================================== */
 
-    renderizarCalendario: function () {
+                for (
+                    let i = 0;
+                    i < primeiroDiaSemana;
+                    i++
+                ) {
 
-        const container =
-            document.getElementById(
-                "calendarioDias"
-            );
+                    const vazio =
+                        document.createElement("div");
 
-        const titulo =
-            document.getElementById(
-                "mesAtual"
-            );
+                    vazio.className =
+                        "calendario-dia vazio";
 
+                    container.appendChild(vazio);
 
-        if (!container || !titulo) {
-            return;
-        }
+                }
 
 
-        const nomesMeses = [
+                /* =====================================================
+                   DIAS
+                ===================================================== */
 
-            "Janeiro",
-            "Fevereiro",
-            "Março",
-            "Abril",
-            "Maio",
-            "Junho",
-            "Julho",
-            "Agosto",
-            "Setembro",
-            "Outubro",
-            "Novembro",
-            "Dezembro"
+                for (
+                    let dia = 1;
+                    dia <= quantidadeDias;
+                    dia++
+                ) {
 
-        ];
+                    const dataObj =
+                        new Date(
+                            this.anoAtual,
+                            this.mesAtual,
+                            dia
+                        );
 
 
-        titulo.textContent =
-            `${nomesMeses[this.mesAtual]} ${this.anoAtual}`;
+                    const dataString =
+                        obterDataLocal(dataObj);
 
 
-        container.innerHTML = "";
+                    const botao =
+                        document.createElement("button");
 
 
-        const primeiroDia =
-            new Date(
-                this.anoAtual,
-                this.mesAtual,
-                1
-            );
+                    botao.type = "button";
 
+                    botao.className =
+                        "calendario-dia";
 
-        const ultimoDia =
-            new Date(
-                this.anoAtual,
-                this.mesAtual + 1,
-                0
-            );
+                    botao.textContent =
+                        dia;
 
+                    botao.dataset.data =
+                        dataString;
 
-        const quantidadeDias =
-            ultimoDia.getDate();
 
+                    /* =================================================
+                       DATA DE HOJE
+                    ================================================= */
 
-        const primeiroDiaSemana =
-            primeiroDia.getDay();
+                    const hoje =
+                        new Date();
 
+                    hoje.setHours(
+                        0,
+                        0,
+                        0,
+                        0
+                    );
 
-        /* =====================================================
-           ESPAÇOS ANTES DO PRIMEIRO DIA
-        ===================================================== */
 
-        for (
-            let i = 0;
-            i < primeiroDiaSemana;
-            i++
-        ) {
+                    const dataComparacao =
+                        new Date(
+                            this.anoAtual,
+                            this.mesAtual,
+                            dia
+                        );
 
-            const vazio =
-                document.createElement("div");
 
-            vazio.className =
-                "calendario-dia vazio";
+                    if (
+                        dataComparacao < hoje
+                    ) {
 
-            container.appendChild(vazio);
+                        botao.disabled = true;
 
-        }
+                        botao.classList.add(
+                            "indisponivel"
+                        );
 
+                    }
 
-        /* =====================================================
-           DIAS
-        ===================================================== */
 
-        for (
-            let dia = 1;
-            dia <= quantidadeDias;
-            dia++
-        ) {
+                    /* =================================================
+                       FIM DE SEMANA
+                    ================================================= */
 
-            const dataObj =
-                new Date(
-                    this.anoAtual,
-                    this.mesAtual,
-                    dia
-                );
+                    const diaSemana =
+                        dataObj.getDay();
 
 
-            const dataString =
-                obterDataLocal(dataObj);
+                    if (
+                        diaSemana === 0 ||
+                        diaSemana === 6
+                    ) {
 
+                        botao.disabled = true;
 
-            const botao =
-                document.createElement("button");
+                        botao.classList.add(
+                            "indisponivel"
+                        );
 
+                    }
 
-            botao.type = "button";
 
-            botao.className =
-                "calendario-dia";
+                    /* =================================================
+                       DATA SELECIONADA
+                    ================================================= */
 
-            botao.textContent =
-                dia;
+                    const dataSelecionada =
+                        document.getElementById(
+                            "dataConsulta"
+                        )?.value;
 
-            botao.dataset.data =
-                dataString;
 
+                    if (
+                        dataSelecionada ===
+                        dataString
+                    ) {
 
-            /* =================================================
-               DATA DE HOJE
-            ================================================= */
+                        botao.classList.add(
+                            "selecionado"
+                        );
 
-            const hoje =
-                new Date();
+                    }
 
-            hoje.setHours(
-                0,
-                0,
-                0,
-                0
-            );
 
+                    /* =================================================
+                       CLIQUE
+                    ================================================= */
 
-            const dataComparacao =
-                new Date(
-                    this.anoAtual,
-                    this.mesAtual,
-                    dia
-                );
+                    if (!botao.disabled) {
 
+                        botao.addEventListener(
+                            "click",
+                            () => {
 
-            if (
-                dataComparacao < hoje
+                                this.selecionarData(
+                                    dataString,
+                                    botao
+                                );
+
+                            }
+                        );
+
+                    }
+
+
+                    container.appendChild(
+                        botao
+                    );
+
+                }
+
+            },
+
+
+            /* =========================================================
+               SELECIONAR DATA
+            ========================================================= */
+
+            selecionarData: function (
+                data,
+                botao
             ) {
 
-                botao.disabled = true;
-
-                botao.classList.add(
-                    "indisponivel"
-                );
-
-            }
+                const input =
+                    document.getElementById(
+                        "dataConsulta"
+                    );
 
 
-            /* =================================================
-               FIM DE SEMANA
-            ================================================= */
-
-            const diaSemana =
-                dataObj.getDay();
+                if (!input) {
+                    return;
+                }
 
 
-            if (
-                diaSemana === 0 ||
-                diaSemana === 6
-            ) {
+                document
+                    .querySelectorAll(
+                        ".calendario-dia.selecionado"
+                    )
+                    .forEach(
+                        elemento => {
 
-                botao.disabled = true;
+                            elemento.classList.remove(
+                                "selecionado"
+                            );
 
-                botao.classList.add(
-                    "indisponivel"
-                );
+                        }
+                    );
 
-            }
-
-
-            /* =================================================
-               DATA SELECIONADA
-            ================================================= */
-
-            const dataSelecionada =
-                document.getElementById(
-                    "dataConsulta"
-                )?.value;
-
-
-            if (
-                dataSelecionada ===
-                dataString
-            ) {
 
                 botao.classList.add(
                     "selecionado"
                 );
 
-            }
+
+                input.value =
+                    data;
 
 
-            /* =================================================
-               CLIQUE
-            ================================================= */
-
-            if (!botao.disabled) {
-
-                botao.addEventListener(
-                    "click",
-                    () => {
-
-                        this.selecionarData(
-                            dataString,
-                            botao
-                        );
-
-                    }
-                );
-
-            }
+                horarioSelecionado =
+                    null;
 
 
-            container.appendChild(
-                botao
-            );
+                this.atualizarResumo();
 
-        }
+                carregarHorarios();
 
-    },
+            },
 
 
-    /* =========================================================
-       SELECIONAR DATA
-    ========================================================= */
+            /* =========================================================
+               RESUMO
+            ========================================================= */
 
-    selecionarData: function (
-        data,
-        botao
-    ) {
+            atualizarResumo: function () {
 
-        const input =
-            document.getElementById(
-                "dataConsulta"
-            );
-
-
-        if (!input) {
-            return;
-        }
-
-
-        document
-            .querySelectorAll(
-                ".calendario-dia.selecionado"
-            )
-            .forEach(
-                elemento => {
-
-                    elemento.classList.remove(
-                        "selecionado"
+                const profissional =
+                    document.getElementById(
+                        "profissional"
                     );
 
+
+                const data =
+                    document.getElementById(
+                        "dataConsulta"
+                    );
+
+
+                const resumoProfissional =
+                    document.getElementById(
+                        "resumoProfissional"
+                    );
+
+
+                const resumoData =
+                    document.getElementById(
+                        "resumoData"
+                    );
+
+
+                const resumoHorario =
+                    document.getElementById(
+                        "resumoHorario"
+                    );
+
+
+                if (resumoProfissional) {
+
+                    if (
+                        profissional &&
+                        profissional.value
+                    ) {
+
+                        resumoProfissional.textContent =
+                            profissional
+                                .options[
+                                profissional.selectedIndex
+                            ]
+                                .textContent;
+
+                    } else {
+
+                        resumoProfissional.textContent =
+                            "Não selecionado";
+
+                    }
+
                 }
-            );
 
 
-        botao.classList.add(
-            "selecionado"
-        );
+                if (resumoData) {
+
+                    resumoData.textContent =
+                        data?.value
+                            ? formatarData(
+                                data.value
+                            )
+                            : "Não selecionada";
+
+                }
 
 
-        input.value =
-            data;
+                if (resumoHorario) {
 
+                    resumoHorario.textContent =
+                        horarioSelecionado
+                            ? `${formatarHora(horarioSelecionado.inicio)} - ${formatarHora(horarioSelecionado.fim)}`
+                            : "Não selecionado";
 
-        horarioSelecionado =
-            null;
-
-
-        this.atualizarResumo();
-
-        carregarHorarios();
-
-    },
-
-
-    /* =========================================================
-       RESUMO
-    ========================================================= */
-
-    atualizarResumo: function () {
-
-        const profissional =
-            document.getElementById(
-                "profissional"
-            );
-
-
-        const data =
-            document.getElementById(
-                "dataConsulta"
-            );
-
-
-        const resumoProfissional =
-            document.getElementById(
-                "resumoProfissional"
-            );
-
-
-        const resumoData =
-            document.getElementById(
-                "resumoData"
-            );
-
-
-        const resumoHorario =
-            document.getElementById(
-                "resumoHorario"
-            );
-
-
-        if (resumoProfissional) {
-
-            if (
-                profissional &&
-                profissional.value
-            ) {
-
-                resumoProfissional.textContent =
-                    profissional
-                        .options[
-                            profissional.selectedIndex
-                        ]
-                        .textContent;
-
-            } else {
-
-                resumoProfissional.textContent =
-                    "Não selecionado";
+                }
 
             }
 
-        }
+        };
 
 
-        if (resumoData) {
+        /* =========================================================
+           CARREGAR PROFISSIONAIS
+        ========================================================= */
 
-            resumoData.textContent =
-                data?.value
-                    ? formatarData(
-                        data.value
-                    )
-                    : "Não selecionada";
+        async function carregarProfissionais() {
 
-        }
-
-
-        if (resumoHorario) {
-
-            resumoHorario.textContent =
-                horarioSelecionado
-                    ? `${formatarHora(horarioSelecionado.inicio)} - ${formatarHora(horarioSelecionado.fim)}`
-                    : "Não selecionado";
-
-        }
-
-    }
-
-};
+            const select =
+                document.getElementById(
+                    "profissional"
+                );
 
 
-/* =========================================================
-   CARREGAR PROFISSIONAIS
-========================================================= */
-
-async function carregarProfissionais() {
-
-    const select =
-        document.getElementById(
-            "profissional"
-        );
+            if (!select) {
+                return;
+            }
 
 
-    if (!select) {
-        return;
-    }
-
-
-    select.innerHTML = `
+            select.innerHTML = `
         <option value="">
             Carregando profissionais...
         </option>
     `;
 
 
-    try {
+            try {
 
-        const resposta =
-            await fetch(
-                `${API_URL}/profissionais`
-            );
-
-
-        if (!resposta.ok) {
-
-            throw new Error(
-                "Erro ao buscar profissionais."
-            );
-
-        }
+                const resposta =
+                    await fetch(
+                        `${API_URL}/profissionais`
+                    );
 
 
-        const profissionais =
-            await resposta.json();
+                if (!resposta.ok) {
+
+                    throw new Error(
+                        "Erro ao buscar profissionais."
+                    );
+
+                }
 
 
-        select.innerHTML = `
+                const profissionais =
+                    await resposta.json();
+
+
+                select.innerHTML = `
             <option value="">
                 Selecione um profissional
             </option>
         `;
 
 
-        profissionais
-            .filter(
-                profissional =>
-                    Number(
-                        profissional.ativo
-                    ) === 1 &&
-                    Number(
-                        profissional.agenda_disponivel
-                    ) === 1
-            )
-            .forEach(
-                profissional => {
+                profissionais
+                    .filter(
+                        profissional =>
+                            Number(
+                                profissional.ativo
+                            ) === 1 &&
+                            Number(
+                                profissional.agenda_disponivel
+                            ) === 1
+                    )
+                    .forEach(
+                        profissional => {
 
-                    const option =
-                        document.createElement(
-                            "option"
-                        );
-
-
-                    option.value =
-                        profissional.id;
+                            const option =
+                                document.createElement(
+                                    "option"
+                                );
 
 
-                    option.textContent =
-                        `${profissional.nome} - ${profissional.especialidade}`;
+                            option.value =
+                                profissional.id;
 
 
-                    select.appendChild(
-                        option
+                            option.textContent =
+                                `${profissional.nome} - ${profissional.especialidade}`;
+
+
+                            select.appendChild(
+                                option
+                            );
+
+                        }
                     );
 
-                }
-            );
+
+                Agendamento.atualizarResumo();
 
 
-        Agendamento.atualizarResumo();
+            } catch (erro) {
+
+                console.error(
+                    "Erro ao carregar profissionais:",
+                    erro
+                );
 
 
-    } catch (erro) {
-
-        console.error(
-            "Erro ao carregar profissionais:",
-            erro
-        );
-
-
-        select.innerHTML = `
+                select.innerHTML = `
             <option value="">
                 Erro ao carregar profissionais
             </option>
         `;
 
-    }
+            }
 
-}
-
-
-/* =========================================================
-   CARREGAR HORÁRIOS
-========================================================= */
-
-async function carregarHorarios() {
-
-    const profissional =
-        document.getElementById(
-            "profissional"
-        )?.value;
+        }
 
 
-    const data =
-        document.getElementById(
-            "dataConsulta"
-        )?.value;
+        /* =========================================================
+           CARREGAR HORÁRIOS
+        ========================================================= */
+
+        async function carregarHorarios() {
+
+            const profissional =
+                document.getElementById(
+                    "profissional"
+                )?.value;
 
 
-    const container =
-        document.getElementById(
-            "horarios"
-        );
+            const data =
+                document.getElementById(
+                    "dataConsulta"
+                )?.value;
 
 
-    if (!container) {
-        return;
-    }
+            const container =
+                document.getElementById(
+                    "horarios"
+                );
 
 
-    horarioSelecionado =
-        null;
+            if (!container) {
+                return;
+            }
 
 
-    Agendamento.atualizarResumo();
+            horarioSelecionado =
+                null;
 
 
-    if (
-        !profissional ||
-        !data
-    ) {
+            Agendamento.atualizarResumo();
 
-        container.innerHTML = `
+
+            if (
+                !profissional ||
+                !data
+            ) {
+
+                container.innerHTML = `
             <p class="mensagem-agendamento">
                 Escolha um profissional e uma data.
             </p>
         `;
 
-        return;
+                return;
 
-    }
+            }
 
 
-    container.innerHTML = `
+            container.innerHTML = `
         <p class="mensagem-agendamento">
             Carregando horários...
         </p>
     `;
 
 
-    try {
+            try {
 
-        const resposta =
-            await fetch(
-                `${API_URL}/horarios/${profissional}/${data}`
-            );
-
-
-        if (!resposta.ok) {
-
-            throw new Error(
-                "A API não respondeu corretamente."
-            );
-
-        }
+                const resposta =
+                    await fetch(
+                        `${API_URL}/horarios/${profissional}/${data}`
+                    );
 
 
-        const horarios =
-            await resposta.json();
+                if (!resposta.ok) {
+
+                    throw new Error(
+                        "A API não respondeu corretamente."
+                    );
+
+                }
 
 
-        if (
-            !Array.isArray(
-                horarios
-            )
-        ) {
-
-            throw new Error(
-                "Resposta inválida da API."
-            );
-
-        }
+                const horarios =
+                    await resposta.json();
 
 
-        if (
-            horarios.length === 0
-        ) {
+                if (
+                    !Array.isArray(
+                        horarios
+                    )
+                ) {
 
-            container.innerHTML = `
+                    throw new Error(
+                        "Resposta inválida da API."
+                    );
+
+                }
+
+
+                if (
+                    horarios.length === 0
+                ) {
+
+                    container.innerHTML = `
                 <div class="mensagem-agendamento">
 
                     <strong>
@@ -6724,114 +6789,114 @@ async function carregarHorarios() {
                 </div>
             `;
 
-            return;
-
-        }
-
-
-        container.innerHTML = "";
-
-
-        horarios.forEach(
-            horario => {
-
-                const inicio =
-                    horario.inicio ||
-                    horario.hora_inicio;
-
-
-                const fim =
-                    horario.fim ||
-                    horario.hora_fim;
-
-
-                const botao =
-                    document.createElement(
-                        "button"
-                    );
-
-
-                botao.type =
-                    "button";
-
-
-                botao.className =
-                    "horario-btn";
-
-
-                botao.textContent =
-                    `${formatarHora(inicio)} - ${formatarHora(fim)}`;
-
-
-                /* =================================================
-                   OCUPADO
-                ================================================= */
-
-                if (
-                    horario.disponivel === false
-                ) {
-
-                    botao.disabled =
-                        true;
-
-
-                    botao.classList.add(
-                        "indisponivel"
-                    );
-
-
-                    botao.title =
-                        "Este horário já está ocupado.";
+                    return;
 
                 }
 
 
-                /* =================================================
-                   DISPONÍVEL
-                ================================================= */
-
-                else {
-
-                    botao.classList.add(
-                        "disponivel"
-                    );
+                container.innerHTML = "";
 
 
-                    botao.addEventListener(
-                        "click",
-                        () => {
+                horarios.forEach(
+                    horario => {
 
-                            selecionarHorario(
-                                {
-                                    inicio,
-                                    fim
-                                },
-                                botao
+                        const inicio =
+                            horario.inicio ||
+                            horario.hora_inicio;
+
+
+                        const fim =
+                            horario.fim ||
+                            horario.hora_fim;
+
+
+                        const botao =
+                            document.createElement(
+                                "button"
+                            );
+
+
+                        botao.type =
+                            "button";
+
+
+                        botao.className =
+                            "horario-btn";
+
+
+                        botao.textContent =
+                            `${formatarHora(inicio)} - ${formatarHora(fim)}`;
+
+
+                        /* =================================================
+                           OCUPADO
+                        ================================================= */
+
+                        if (
+                            horario.disponivel === false
+                        ) {
+
+                            botao.disabled =
+                                true;
+
+
+                            botao.classList.add(
+                                "indisponivel"
+                            );
+
+
+                            botao.title =
+                                "Este horário já está ocupado.";
+
+                        }
+
+
+                        /* =================================================
+                           DISPONÍVEL
+                        ================================================= */
+
+                        else {
+
+                            botao.classList.add(
+                                "disponivel"
+                            );
+
+
+                            botao.addEventListener(
+                                "click",
+                                () => {
+
+                                    selecionarHorario(
+                                        {
+                                            inicio,
+                                            fim
+                                        },
+                                        botao
+                                    );
+
+                                }
                             );
 
                         }
-                    );
-
-                }
 
 
-                container.appendChild(
-                    botao
+                        container.appendChild(
+                            botao
+                        );
+
+                    }
                 );
 
-            }
-        );
+
+            } catch (erro) {
+
+                console.error(
+                    "Erro ao carregar horários:",
+                    erro
+                );
 
 
-    } catch (erro) {
-
-        console.error(
-            "Erro ao carregar horários:",
-            erro
-        );
-
-
-        container.innerHTML = `
+                container.innerHTML = `
             <div class="mensagem-agendamento">
 
                 <strong>
@@ -6846,414 +6911,414 @@ async function carregarHorarios() {
             </div>
         `;
 
-    }
+            }
 
-}
+        }
 
 
-/* =========================================================
-   SELECIONAR HORÁRIO
-========================================================= */
+        /* =========================================================
+           SELECIONAR HORÁRIO
+        ========================================================= */
 
-function selecionarHorario(
-    horario,
-    botao
-) {
+        function selecionarHorario(
+            horario,
+            botao
+        ) {
 
-    document
-        .querySelectorAll(
-            ".horario-btn"
-        )
-        .forEach(
-            btn => {
+            document
+                .querySelectorAll(
+                    ".horario-btn"
+                )
+                .forEach(
+                    btn => {
 
-                btn.classList.remove(
-                    "selecionado"
+                        btn.classList.remove(
+                            "selecionado"
+                        );
+
+                    }
                 );
 
+
+            botao.classList.add(
+                "selecionado"
+            );
+
+
+            horarioSelecionado =
+                horario;
+
+
+            const mensagem =
+                document.getElementById(
+                    "mensagemAgendamento"
+                );
+
+
+            if (mensagem) {
+
+                mensagem.textContent =
+                    `Horário selecionado: ${formatarHora(horario.inicio)} - ${formatarHora(horario.fim)}`;
+
+                mensagem.style.color =
+                    "";
+
             }
-        );
 
 
-    botao.classList.add(
-        "selecionado"
-    );
+            Agendamento.atualizarResumo();
 
+        }
 
-    horarioSelecionado =
-        horario;
 
+        /* =========================================================
+           REALIZAR AGENDAMENTO
+        ========================================================= */
 
-    const mensagem =
-        document.getElementById(
-            "mensagemAgendamento"
-        );
+        async function realizarAgendamento() {
 
+            const profissionalSelect =
+                document.getElementById(
+                    "profissional"
+                );
 
-    if (mensagem) {
 
-        mensagem.textContent =
-            `Horário selecionado: ${formatarHora(horario.inicio)} - ${formatarHora(horario.fim)}`;
+            const profissionalId =
+                profissionalSelect?.value;
 
-        mensagem.style.color =
-            "";
 
-    }
+            const profissionalNome =
+                profissionalSelect?.options[
+                    profissionalSelect.selectedIndex
+                ]?.textContent || "";
 
 
-    Agendamento.atualizarResumo();
+            const data =
+                document.getElementById(
+                    "dataConsulta"
+                )?.value;
 
-}
 
+            const nomeResponsavel =
+                document
+                    .getElementById(
+                        "nomeResponsavel"
+                    )
+                    ?.value
+                    .trim();
 
-/* =========================================================
-   REALIZAR AGENDAMENTO
-========================================================= */
 
-async function realizarAgendamento() {
+            const whatsapp =
+                document
+                    .getElementById(
+                        "whatsappResponsavel"
+                    )
+                    ?.value
+                    .trim();
 
-    const profissionalSelect =
-        document.getElementById(
-            "profissional"
-        );
 
+            const email =
+                document
+                    .getElementById(
+                        "emailResponsavel"
+                    )
+                    ?.value
+                    .trim();
 
-    const profissionalId =
-        profissionalSelect?.value;
 
+            const nomeCrianca =
+                document
+                    .getElementById(
+                        "nomeCrianca"
+                    )
+                    ?.value
+                    .trim();
 
-    const profissionalNome =
-        profissionalSelect?.options[
-            profissionalSelect.selectedIndex
-        ]?.textContent || "";
 
+            const observacoes =
+                document
+                    .getElementById(
+                        "observacoes"
+                    )
+                    ?.value
+                    .trim();
 
-    const data =
-        document.getElementById(
-            "dataConsulta"
-        )?.value;
 
+            const mensagem =
+                document.getElementById(
+                    "mensagemAgendamento"
+                );
 
-    const nomeResponsavel =
-        document
-            .getElementById(
-                "nomeResponsavel"
-            )
-            ?.value
-            .trim();
 
+            /* =====================================================
+               VALIDAÇÕES
+            ===================================================== */
 
-    const whatsapp =
-        document
-            .getElementById(
-                "whatsappResponsavel"
-            )
-            ?.value
-            .trim();
+            if (!profissionalId) {
 
+                mostrarMensagem(
+                    mensagem,
+                    "Selecione um profissional.",
+                    "erro"
+                );
 
-    const email =
-        document
-            .getElementById(
-                "emailResponsavel"
-            )
-            ?.value
-            .trim();
+                return;
 
+            }
 
-    const nomeCrianca =
-        document
-            .getElementById(
-                "nomeCrianca"
-            )
-            ?.value
-            .trim();
 
+            if (!data) {
 
-    const observacoes =
-        document
-            .getElementById(
-                "observacoes"
-            )
-            ?.value
-            .trim();
+                mostrarMensagem(
+                    mensagem,
+                    "Selecione uma data.",
+                    "erro"
+                );
 
+                return;
 
-    const mensagem =
-        document.getElementById(
-            "mensagemAgendamento"
-        );
+            }
 
 
-    /* =====================================================
-       VALIDAÇÕES
-    ===================================================== */
+            if (!horarioSelecionado) {
 
-    if (!profissionalId) {
+                mostrarMensagem(
+                    mensagem,
+                    "Selecione um horário.",
+                    "erro"
+                );
 
-        mostrarMensagem(
-            mensagem,
-            "Selecione um profissional.",
-            "erro"
-        );
+                return;
 
-        return;
+            }
 
-    }
 
+            if (!nomeResponsavel) {
 
-    if (!data) {
+                mostrarMensagem(
+                    mensagem,
+                    "Informe o nome do responsável.",
+                    "erro"
+                );
 
-        mostrarMensagem(
-            mensagem,
-            "Selecione uma data.",
-            "erro"
-        );
+                return;
 
-        return;
+            }
 
-    }
 
+            if (!whatsapp) {
 
-    if (!horarioSelecionado) {
+                mostrarMensagem(
+                    mensagem,
+                    "Informe o WhatsApp.",
+                    "erro"
+                );
 
-        mostrarMensagem(
-            mensagem,
-            "Selecione um horário.",
-            "erro"
-        );
+                return;
 
-        return;
+            }
 
-    }
 
+            if (!nomeCrianca) {
 
-    if (!nomeResponsavel) {
+                mostrarMensagem(
+                    mensagem,
+                    "Informe o nome da criança.",
+                    "erro"
+                );
 
-        mostrarMensagem(
-            mensagem,
-            "Informe o nome do responsável.",
-            "erro"
-        );
+                return;
 
-        return;
+            }
 
-    }
 
+            const btn =
+                document.getElementById(
+                    "btnAgendar"
+                );
 
-    if (!whatsapp) {
 
-        mostrarMensagem(
-            mensagem,
-            "Informe o WhatsApp.",
-            "erro"
-        );
+            if (btn) {
 
-        return;
+                btn.disabled =
+                    true;
 
-    }
+                btn.textContent =
+                    "Confirmando...";
 
+            }
 
-    if (!nomeCrianca) {
 
-        mostrarMensagem(
-            mensagem,
-            "Informe o nome da criança.",
-            "erro"
-        );
+            mostrarMensagem(
+                mensagem,
+                "Confirmando agendamento...",
+                "normal"
+            );
 
-        return;
 
-    }
+            try {
 
+                /* =================================================
+                   ENVIAR PARA API
+                ================================================= */
 
-    const btn =
-        document.getElementById(
-            "btnAgendar"
-        );
+                const resposta =
+                    await fetch(
+                        `${API_URL}/agendamentos`,
+                        {
+                            method: "POST",
 
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
 
-    if (btn) {
+                            body: JSON.stringify({
 
-        btn.disabled =
-            true;
+                                profissional_id:
+                                    Number(
+                                        profissionalId
+                                    ),
 
-        btn.textContent =
-            "Confirmando...";
+                                data_consulta:
+                                    data,
 
-    }
+                                hora_inicio:
+                                    horarioSelecionado.inicio,
 
+                                hora_fim:
+                                    horarioSelecionado.fim,
 
-    mostrarMensagem(
-        mensagem,
-        "Confirmando agendamento...",
-        "normal"
-    );
+                                nome_responsavel:
+                                    nomeResponsavel,
 
+                                whatsapp_responsavel:
+                                    whatsapp,
 
-    try {
+                                email_responsavel:
+                                    email || null,
 
-        /* =================================================
-           ENVIAR PARA API
-        ================================================= */
+                                nome_crianca:
+                                    nomeCrianca,
 
-        const resposta =
-            await fetch(
-                `${API_URL}/agendamentos`,
-                {
-                    method: "POST",
+                                observacoes:
+                                    observacoes || null
 
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
+                            })
+                        }
+                    );
 
-                    body: JSON.stringify({
 
-                        profissional_id:
-                            Number(
-                                profissionalId
-                            ),
+                let resultado = {};
 
-                        data_consulta:
-                            data,
 
-                        hora_inicio:
-                            horarioSelecionado.inicio,
+                try {
 
-                        hora_fim:
-                            horarioSelecionado.fim,
+                    resultado =
+                        await resposta.json();
 
-                        nome_responsavel:
-                            nomeResponsavel,
+                } catch (e) {
 
-                        whatsapp_responsavel:
-                            whatsapp,
+                    resultado = {};
 
-                        email_responsavel:
-                            email || null,
-
-                        nome_crianca:
-                            nomeCrianca,
-
-                        observacoes:
-                            observacoes || null
-
-                    })
                 }
-            );
 
 
-        let resultado = {};
+                if (!resposta.ok) {
+
+                    throw new Error(
+                        resultado.erro ||
+                        "Não foi possível realizar o agendamento."
+                    );
+
+                }
 
 
-        try {
+                /* =================================================
+                   DADOS DO AGENDAMENTO
+                ================================================= */
 
-            resultado =
-                await resposta.json();
-
-        } catch (e) {
-
-            resultado = {};
-
-        }
+                const dataFormatada =
+                    formatarData(data);
 
 
-        if (!resposta.ok) {
-
-            throw new Error(
-                resultado.erro ||
-                "Não foi possível realizar o agendamento."
-            );
-
-        }
+                const horarioFormatado =
+                    `${formatarHora(horarioSelecionado.inicio)} às ${formatarHora(horarioSelecionado.fim)}`;
 
 
-        /* =================================================
-           DADOS DO AGENDAMENTO
-        ================================================= */
+                const dadosAgendamento = {
 
-        const dataFormatada =
-            formatarData(data);
+                    id:
+                        resultado.id ||
+                        resultado.agendamento_id ||
+                        null,
 
+                    profissional:
+                        profissionalNome,
 
-        const horarioFormatado =
-            `${formatarHora(horarioSelecionado.inicio)} às ${formatarHora(horarioSelecionado.fim)}`;
+                    data:
+                        dataFormatada,
 
+                    dataOriginal:
+                        data,
 
-        const dadosAgendamento = {
+                    horario:
+                        horarioFormatado,
 
-            id:
-                resultado.id ||
-                resultado.agendamento_id ||
-                null,
+                    horarioInicio:
+                        formatarHora(
+                            horarioSelecionado.inicio
+                        ),
 
-            profissional:
-                profissionalNome,
+                    horarioFim:
+                        formatarHora(
+                            horarioSelecionado.fim
+                        ),
 
-            data:
-                dataFormatada,
+                    responsavel:
+                        nomeResponsavel,
 
-            dataOriginal:
-                data,
+                    crianca:
+                        nomeCrianca,
 
-            horario:
-                horarioFormatado,
+                    whatsapp:
+                        whatsapp,
 
-            horarioInicio:
-                formatarHora(
-                    horarioSelecionado.inicio
-                ),
+                    email:
+                        email || "",
 
-            horarioFim:
-                formatarHora(
-                    horarioSelecionado.fim
-                ),
+                    observacoes:
+                        observacoes || ""
 
-            responsavel:
-                nomeResponsavel,
-
-            crianca:
-                nomeCrianca,
-
-            whatsapp:
-                whatsapp,
-
-            email:
-                email || "",
-
-            observacoes:
-                observacoes || ""
-
-        };
+                };
 
 
-        /* =================================================
-           GERAR PDF
-        ================================================= */
+                /* =================================================
+                   GERAR PDF
+                ================================================= */
 
-        try {
+                try {
 
-            await gerarPDFAgendamento(
-                dadosAgendamento
-            );
+                    await gerarPDFAgendamento(
+                        dadosAgendamento
+                    );
 
-        } catch (erroPDF) {
+                } catch (erroPDF) {
 
-            console.error(
-                "Erro ao gerar PDF:",
-                erroPDF
-            );
+                    console.error(
+                        "Erro ao gerar PDF:",
+                        erroPDF
+                    );
 
-        }
+                }
 
 
-        /* =================================================
-           WHATSAPP
-        ================================================= */
+                /* =================================================
+                   WHATSAPP
+                ================================================= */
 
-        const mensagemWhatsApp =
-`Olá! Gostaria de confirmar meu agendamento na Tenda do Cuidar.
+                const mensagemWhatsApp =
+                    `Olá! Gostaria de confirmar meu agendamento na Tenda do Cuidar.
 
 *Data:* ${dataFormatada}
 *Horário:* ${horarioFormatado}
@@ -7272,1768 +7337,1786 @@ O comprovante do agendamento foi gerado em PDF.
 Agendamento realizado pelo site da Tenda do Cuidar.`;
 
 
-        const whatsappUrl =
-            `https://wa.me/${WHATSAPP_NUMBER}?text=` +
-            encodeURIComponent(
-                mensagemWhatsApp
-            );
+                const whatsappUrl =
+                    `https://wa.me/${WHATSAPP_NUMBER}?text=` +
+                    encodeURIComponent(
+                        mensagemWhatsApp
+                    );
 
 
-        /* =================================================
-           SUCESSO
-        ================================================= */
+                /* =================================================
+                   SUCESSO
+                ================================================= */
 
-        mostrarMensagem(
-            mensagem,
-            "Agendamento realizado com sucesso! O comprovante em PDF foi baixado. Abrindo o WhatsApp...",
-            "sucesso"
-        );
-
-
-        /* =================================================
-           ATUALIZAR HORÁRIOS
-        ================================================= */
-
-        horarioSelecionado =
-            null;
+                mostrarMensagem(
+                    mensagem,
+                    "Agendamento realizado com sucesso! O comprovante em PDF foi baixado. Abrindo o WhatsApp...",
+                    "sucesso"
+                );
 
 
-        await carregarHorarios();
+                /* =================================================
+                   ATUALIZAR HORÁRIOS
+                ================================================= */
+
+                horarioSelecionado =
+                    null;
 
 
-        /* =================================================
-           LIMPAR CAMPOS
-        ================================================= */
-
-        [
-            "nomeResponsavel",
-            "whatsappResponsavel",
-            "emailResponsavel",
-            "nomeCrianca",
-            "observacoes"
-        ]
-            .forEach(
-                id => {
-
-                    const campo =
-                        document.getElementById(
-                            id
-                        );
+                await carregarHorarios();
 
 
-                    if (campo) {
-                        campo.value = "";
-                    }
+                /* =================================================
+                   LIMPAR CAMPOS
+                ================================================= */
+
+                [
+                    "nomeResponsavel",
+                    "whatsappResponsavel",
+                    "emailResponsavel",
+                    "nomeCrianca",
+                    "observacoes"
+                ]
+                    .forEach(
+                        id => {
+
+                            const campo =
+                                document.getElementById(
+                                    id
+                                );
+
+
+                            if (campo) {
+                                campo.value = "";
+                            }
+
+                        }
+                    );
+
+
+                Agendamento.atualizarResumo();
+
+
+                /* =================================================
+                   ABRIR WHATSAPP
+                ================================================= */
+
+                setTimeout(
+                    () => {
+
+                        window.location.href =
+                            whatsappUrl;
+
+                    },
+                    1200
+                );
+
+
+            } catch (erro) {
+
+                console.error(
+                    "Erro ao realizar agendamento:",
+                    erro
+                );
+
+
+                mostrarMensagem(
+                    mensagem,
+                    erro.message ||
+                    "Não foi possível conectar ao servidor.",
+                    "erro"
+                );
+
+
+            } finally {
+
+                if (btn) {
+
+                    btn.disabled =
+                        false;
+
+                    btn.textContent =
+                        "Confirmar agendamento";
 
                 }
-            );
 
-
-        Agendamento.atualizarResumo();
-
-
-        /* =================================================
-           ABRIR WHATSAPP
-        ================================================= */
-
-        setTimeout(
-            () => {
-
-                window.location.href =
-                    whatsappUrl;
-
-            },
-            1200
-        );
-
-
-    } catch (erro) {
-
-        console.error(
-            "Erro ao realizar agendamento:",
-            erro
-        );
-
-
-        mostrarMensagem(
-            mensagem,
-            erro.message ||
-            "Não foi possível conectar ao servidor.",
-            "erro"
-        );
-
-
-    } finally {
-
-        if (btn) {
-
-            btn.disabled =
-                false;
-
-            btn.textContent =
-                "Confirmar agendamento";
+            }
 
         }
 
-    }
 
-}
+        /* =========================================================
+           GERAR PDF DO AGENDAMENTO
+           TENDA DO CUIDAR
+           DESIGN PROFISSIONAL • NEUTRO • ACOLHEDOR
+        ========================================================= */
 
+        async function gerarPDFAgendamento(dados) {
 
-/* =========================================================
-   GERAR PDF DO AGENDAMENTO
-   TENDA DO CUIDAR
-   DESIGN PROFISSIONAL • NEUTRO • ACOLHEDOR
-========================================================= */
+            /* =====================================================
+               VERIFICAR JSPDF
+            ===================================================== */
 
-async function gerarPDFAgendamento(dados) {
+            if (
+                !window.jspdf ||
+                !window.jspdf.jsPDF
+            ) {
+                throw new Error(
+                    "A biblioteca jsPDF não foi carregada."
+                );
+            }
 
-    /* =====================================================
-       VERIFICAR JSPDF
-    ===================================================== */
+            const { jsPDF } = window.jspdf;
 
-    if (
-        !window.jspdf ||
-        !window.jspdf.jsPDF
-    ) {
-        throw new Error(
-            "A biblioteca jsPDF não foi carregada."
-        );
-    }
+            const pdf = new jsPDF({
+                orientation: "portrait",
+                unit: "mm",
+                format: "a4"
+            });
 
-    const { jsPDF } = window.jspdf;
+            const largura =
+                pdf.internal.pageSize.getWidth();
 
-    const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4"
-    });
-
-    const largura =
-        pdf.internal.pageSize.getWidth();
-
-    const altura =
-        pdf.internal.pageSize.getHeight();
+            const altura =
+                pdf.internal.pageSize.getHeight();
 
 
-    /* =====================================================
-       PALETA TENDA DO CUIDAR
-    ===================================================== */
+            /* =====================================================
+               PALETA TENDA DO CUIDAR
+            ===================================================== */
 
-    const lilas =
-        [185, 167, 217];
+            const lilas =
+                [185, 167, 217];
 
-    const lilasEscuro =
-        [125, 108, 158];
+            const lilasEscuro =
+                [125, 108, 158];
 
-    const azulClaro =
-        [169, 216, 232];
+            const azulClaro =
+                [169, 216, 232];
 
-    const azulEscuro =
-        [91, 137, 157];
+            const azulEscuro =
+                [91, 137, 157];
 
-    const rosa =
-        [233, 154, 170];
+            const rosa =
+                [233, 154, 170];
 
-    const rosaClaro =
-        [249, 222, 228];
+            const rosaClaro =
+                [249, 222, 228];
 
-    const bege =
-        [244, 229, 208];
+            const bege =
+                [244, 229, 208];
 
-    const begeClaro =
-        [252, 249, 245];
+            const begeClaro =
+                [252, 249, 245];
 
-    const branco =
-        [255, 255, 255];
+            const branco =
+                [255, 255, 255];
 
-    const texto =
-        [70, 68, 76];
+            const texto =
+                [70, 68, 76];
 
-    const cinza =
-        [112, 108, 115];
+            const cinza =
+                [112, 108, 115];
 
-    const cinzaClaro =
-        [225, 221, 225];
+            const cinzaClaro =
+                [225, 221, 225];
 
-    const fundoCard =
-        [248, 246, 250];
-
-
-    /* =====================================================
-       TEXTO SEGURO
-    ===================================================== */
-
-    function textoSeguro(valor) {
-
-        if (
-            valor === null ||
-            valor === undefined
-        ) {
-            return "";
-        }
-
-        return String(valor);
-
-    }
+            const fundoCard =
+                [248, 246, 250];
 
 
-    /* =====================================================
-       CARREGAR LOGO
-    ===================================================== */
+            /* =====================================================
+               TEXTO SEGURO
+            ===================================================== */
 
-    function carregarImagemPDF(caminho) {
+            function textoSeguro(valor) {
 
-        return new Promise(
-            (resolve, reject) => {
+                if (
+                    valor === null ||
+                    valor === undefined
+                ) {
+                    return "";
+                }
 
-                const imagem =
-                    new Image();
-
-                imagem.onload =
-                    function () {
-                        resolve(imagem);
-                    };
-
-                imagem.onerror =
-                    function () {
-                        reject(
-                            new Error(
-                                "Não foi possível carregar a logo."
-                            )
-                        );
-                    };
-
-                imagem.src = caminho;
+                return String(valor);
 
             }
-        );
 
-    }
 
+            /* =====================================================
+               CARREGAR LOGO
+            ===================================================== */
 
-    /* =====================================================
-       QUEBRA-CABEÇA
-    ===================================================== */
+            function carregarImagemPDF(caminho) {
 
-    function desenharQuebraCabeca(
-        x,
-        y,
-        tamanho,
-        cor
-    ) {
+                return new Promise(
+                    (resolve, reject) => {
 
-        pdf.setFillColor(...cor);
+                        const imagem =
+                            new Image();
 
-        pdf.roundedRect(
-            x,
-            y,
-            tamanho,
-            tamanho,
-            1.5,
-            1.5,
-            "F"
-        );
+                        imagem.onload =
+                            function () {
+                                resolve(imagem);
+                            };
 
-        /* Aba superior */
+                        imagem.onerror =
+                            function () {
+                                reject(
+                                    new Error(
+                                        "Não foi possível carregar a logo."
+                                    )
+                                );
+                            };
 
-        pdf.circle(
-            x + tamanho / 2,
-            y,
-            tamanho * 0.16,
-            "F"
-        );
+                        imagem.src = caminho;
 
-        /* Aba direita */
+                    }
+                );
 
-        pdf.circle(
-            x + tamanho,
-            y + tamanho / 2,
-            tamanho * 0.16,
-            "F"
-        );
-
-    }
-
-
-    /* =====================================================
-       LABEL
-    ===================================================== */
-
-    function escreverLabel(
-        textoLabel,
-        x,
-        y
-    ) {
-
-        pdf.setFont(
-            "helvetica",
-            "bold"
-        );
-
-        pdf.setFontSize(
-            7
-        );
-
-        pdf.setTextColor(
-            ...cinza
-        );
-
-        pdf.text(
-            textoSeguro(
-                textoLabel
-            ).toUpperCase(),
-            x,
-            y
-        );
-
-    }
-
-
-    /* =====================================================
-       VALOR
-    ===================================================== */
-
-    function escreverValor(
-        valor,
-        x,
-        y,
-        tamanho = 9.5
-    ) {
-
-        pdf.setFont(
-            "helvetica",
-            "bold"
-        );
-
-        pdf.setFontSize(
-            tamanho
-        );
-
-        pdf.setTextColor(
-            ...texto
-        );
-
-        const valorSeguro =
-            textoSeguro(valor);
-
-        /*
-           Evita que textos muito grandes
-           ultrapassem a largura do card.
-        */
-
-        const textoLimitado =
-            pdf.splitTextToSize(
-                valorSeguro,
-                65
-            );
-
-        pdf.text(
-            textoLimitado,
-            x,
-            y
-        );
-
-    }
-
-
-    /* =====================================================
-       CARD
-    ===================================================== */
-
-    function desenharCard(
-        x,
-        y,
-        larguraCard,
-        alturaCard,
-        cor
-    ) {
-
-        pdf.setFillColor(
-            ...cor
-        );
-
-        pdf.roundedRect(
-            x,
-            y,
-            larguraCard,
-            alturaCard,
-            4,
-            4,
-            "F"
-        );
-
-    }
-
-
-    /* =====================================================
-       TÍTULO DE SEÇÃO
-    ===================================================== */
-
-    function tituloSecao(
-        titulo,
-        y,
-        corLinha
-    ) {
-
-        pdf.setFont(
-            "helvetica",
-            "bold"
-        );
-
-        pdf.setFontSize(
-            11.5
-        );
-
-        pdf.setTextColor(
-            ...lilasEscuro
-        );
-
-        pdf.text(
-            titulo,
-            20,
-            y
-        );
-
-        pdf.setDrawColor(
-            ...corLinha
-        );
-
-        pdf.setLineWidth(
-            1
-        );
-
-        pdf.line(
-            20,
-            y + 4,
-            44,
-            y + 4
-        );
-
-    }
-
-
-    /* =====================================================
-       FUNDO
-    ===================================================== */
-
-    pdf.setFillColor(
-        ...begeClaro
-    );
-
-    pdf.rect(
-        0,
-        0,
-        largura,
-        altura,
-        "F"
-    );
-
-
-    /* =====================================================
-       CABEÇALHO
-    ===================================================== */
-
-    pdf.setFillColor(
-        ...lilas
-    );
-
-    pdf.rect(
-        0,
-        0,
-        largura,
-        48,
-        "F"
-    );
-
-
-    /* =====================================================
-       FAIXA AZUL
-    ===================================================== */
-
-    pdf.setFillColor(
-        ...azulClaro
-    );
-
-    pdf.rect(
-        0,
-        44,
-        largura,
-        4,
-        "F"
-    );
-
-
-    /* =====================================================
-       DECORAÇÕES
-    ===================================================== */
-
-    desenharQuebraCabeca(
-        largura - 38,
-        7,
-        9,
-        rosa
-    );
-
-    desenharQuebraCabeca(
-        largura - 25,
-        18,
-        7,
-        azulClaro
-    );
-
-    desenharQuebraCabeca(
-        8,
-        31,
-        7,
-        bege
-    );
-
-
-    /* =====================================================
-       LOGO
-    ===================================================== */
-
-    try {
-
-        const logo =
-            await carregarImagemPDF(
-                "logo_tenda1.png"
-            );
-
-        const logoLargura =
-            38;
-
-        const proporcao =
-            logo.height /
-            logo.width;
-
-        const logoAltura =
-            logoLargura *
-            proporcao;
-
-        pdf.addImage(
-            logo,
-            "PNG",
-            18,
-            5,
-            logoLargura,
-            logoAltura
-        );
-
-    } catch (erroLogo) {
-
-        console.warn(
-            "Logo não encontrada:",
-            erroLogo
-        );
-
-        pdf.setFont(
-            "helvetica",
-            "bold"
-        );
-
-        pdf.setFontSize(
-            15
-        );
-
-        pdf.setTextColor(
-            ...branco
-        );
-
-        pdf.text(
-            "TENDA DO CUIDAR",
-            18,
-            19
-        );
-
-    }
-
-
-    /* =====================================================
-       INFORMAÇÕES DO CABEÇALHO
-    ===================================================== */
-
-    pdf.setFont(
-        "helvetica",
-        "bold"
-    );
-
-    pdf.setFontSize(
-        8
-    );
-
-    pdf.setTextColor(
-        ...branco
-    );
-
-    pdf.text(
-        "AGENDAMENTO",
-        68,
-        21
-    );
-
-    pdf.setFont(
-        "helvetica",
-        "normal"
-    );
-
-    pdf.setFontSize(
-        7
-    );
-
-    pdf.text(
-        "Comprovante de atendimento",
-        68,
-        28
-    );
-
-
-    /* =====================================================
-       ID
-    ===================================================== */
-
-    if (dados.id) {
-
-        pdf.setFont(
-            "helvetica",
-            "bold"
-        );
-
-        pdf.setFontSize(
-            7
-        );
-
-        pdf.text(
-            `Nº ${dados.id}`,
-            largura - 18,
-            34,
-            {
-                align: "right"
             }
-        );
-
-    }
-
 
-    /* =====================================================
-       TÍTULO PRINCIPAL
-    ===================================================== */
 
-    pdf.setFont(
-        "helvetica",
-        "bold"
-    );
-
-    pdf.setFontSize(
-        17
-    );
-
-    pdf.setTextColor(
-        ...texto
-    );
-
-    pdf.text(
-        "Agendamento confirmado",
-        20,
-        62
-    );
-
-
-    pdf.setFont(
-        "helvetica",
-        "normal"
-    );
-
-    pdf.setFontSize(
-        9
-    );
-
-    pdf.setTextColor(
-        ...cinza
-    );
-
-    pdf.text(
-        "Seu atendimento foi registrado com sucesso.",
-        20,
-        69
-    );
-
-
-    /* =====================================================
-       DECORAÇÃO
-    ===================================================== */
-
-    pdf.setDrawColor(
-        ...azulClaro
-    );
-
-    pdf.setLineWidth(
-        1
-    );
-
-    pdf.line(
-        20,
-        76,
-        48,
-        76
-    );
-
-    pdf.setDrawColor(
-        ...lilas
-    );
-
-    pdf.line(
-        52,
-        76,
-        70,
-        76
-    );
-
-    pdf.setDrawColor(
-        ...rosa
-    );
-
-    pdf.line(
-        74,
-        76,
-        85,
-        76
-    );
-
-
-    /* =====================================================
-       CARD DO ATENDIMENTO
-    ===================================================== */
-
-    desenharCard(
-        15,
-        85,
-        largura - 30,
-        58,
-        fundoCard
-    );
-
-
-    /* =====================================================
-       BARRA LATERAL
-    ===================================================== */
-
-    pdf.setFillColor(
-        ...azulClaro
-    );
-
-    pdf.roundedRect(
-        15,
-        85,
-        4,
-        58,
-        2,
-        2,
-        "F"
-    );
-
-
-    /* =====================================================
-       TÍTULO DO CARD
-    ===================================================== */
-
-    pdf.setFont(
-        "helvetica",
-        "bold"
-    );
-
-    pdf.setFontSize(
-        10
-    );
-
-    pdf.setTextColor(
-        ...azulEscuro
-    );
-
-    pdf.text(
-        "DADOS DO ATENDIMENTO",
-        25,
-        97
-    );
-
-
-    /* =====================================================
-       PROFISSIONAL
-    ===================================================== */
-
-    escreverLabel(
-        "Profissional",
-        25,
-        108
-    );
-
-    escreverValor(
-        dados.profissional,
-        25,
-        116,
-        9.5
-    );
-
-
-    /* =====================================================
-       HORÁRIO
-    ===================================================== */
-
-    escreverLabel(
-        "Horário",
-        110,
-        108
-    );
-
-    escreverValor(
-        dados.horario,
-        110,
-        116,
-        9.5
-    );
-
-
-    /* =====================================================
-       DATA
-    ===================================================== */
-
-    escreverLabel(
-        "Data",
-        25,
-        130
-    );
-
-    escreverValor(
-        dados.data,
-        25,
-        138,
-        9.5
-    );
-
-
-    /* =====================================================
-       DECORAÇÃO DO CARD
-    ===================================================== */
-
-    desenharQuebraCabeca(
-        largura - 35,
-        122,
-        7,
-        bege
-    );
-
-
-    /* =====================================================
-       DADOS DA CRIANÇA
-    ===================================================== */
-
-    tituloSecao(
-        "Dados da criança",
-        158,
-        lilas
-    );
-
-
-    /* =====================================================
-       CARD CRIANÇA
-    ===================================================== */
-
-    desenharCard(
-        15,
-        166,
-        largura - 30,
-        31,
-        bege
-    );
-
-
-    escreverLabel(
-        "Nome completo",
-        23,
-        177
-    );
-
-    escreverValor(
-        dados.crianca,
-        23,
-        187,
-        10
-    );
-
-
-    /* =====================================================
-       DADOS DO RESPONSÁVEL
-    ===================================================== */
-
-    tituloSecao(
-        "Dados do responsável",
-        211,
-        azulClaro
-    );
-
-
-    /* =====================================================
-       CARD RESPONSÁVEL
-    ===================================================== */
-
-    desenharCard(
-        15,
-        219,
-        largura - 30,
-        55,
-        rosaClaro
-    );
-
-
-    /* =====================================================
-       NOME DO RESPONSÁVEL
-    ===================================================== */
-
-    escreverLabel(
-        "Nome completo",
-        23,
-        230
-    );
-
-    escreverValor(
-        dados.responsavel,
-        23,
-        238,
-        9.5
-    );
-
-
-    /* =====================================================
-       WHATSAPP
-    ===================================================== */
-
-    escreverLabel(
-        "WhatsApp",
-        23,
-        251
-    );
-
-    escreverValor(
-        dados.whatsapp,
-        23,
-        260,
-        9
-    );
-
-
-    /* =====================================================
-       E-MAIL
-    ===================================================== */
-
-    if (dados.email) {
-
-        escreverLabel(
-            "E-mail",
-            110,
-            251
-        );
-
-        escreverValor(
-            dados.email,
-            110,
-            260,
-            8.5
-        );
-
-    }
-
-
-    /* =====================================================
-       OBSERVAÇÕES
-    ===================================================== */
-
-    let observacaoY =
-        288;
-
-
-    if (dados.observacoes) {
-
-        tituloSecao(
-            "Observações",
-            observacaoY,
-            rosa
-        );
-
-
-        const observacoes =
-            pdf.splitTextToSize(
+            /* =====================================================
+               QUEBRA-CABEÇA
+            ===================================================== */
+
+            function desenharQuebraCabeca(
+                x,
+                y,
+                tamanho,
+                cor
+            ) {
+
+                pdf.setFillColor(...cor);
+
+                pdf.roundedRect(
+                    x,
+                    y,
+                    tamanho,
+                    tamanho,
+                    1.5,
+                    1.5,
+                    "F"
+                );
+
+                /* Aba superior */
+
+                pdf.circle(
+                    x + tamanho / 2,
+                    y,
+                    tamanho * 0.16,
+                    "F"
+                );
+
+                /* Aba direita */
+
+                pdf.circle(
+                    x + tamanho,
+                    y + tamanho / 2,
+                    tamanho * 0.16,
+                    "F"
+                );
+
+            }
+
+
+            /* =====================================================
+               LABEL
+            ===================================================== */
+
+            function escreverLabel(
+                textoLabel,
+                x,
+                y
+            ) {
+
+                pdf.setFont(
+                    "helvetica",
+                    "bold"
+                );
+
+                pdf.setFontSize(
+                    7
+                );
+
+                pdf.setTextColor(
+                    ...cinza
+                );
+
+                pdf.text(
+                    textoSeguro(
+                        textoLabel
+                    ).toUpperCase(),
+                    x,
+                    y
+                );
+
+            }
+
+
+            /* =====================================================
+               VALOR
+            ===================================================== */
+
+            function escreverValor(
+                valor,
+                x,
+                y,
+                tamanho = 9.5
+            ) {
+
+                pdf.setFont(
+                    "helvetica",
+                    "bold"
+                );
+
+                pdf.setFontSize(
+                    tamanho
+                );
+
+                pdf.setTextColor(
+                    ...texto
+                );
+
+                const valorSeguro =
+                    textoSeguro(valor);
+
+                /*
+                   Evita que textos muito grandes
+                   ultrapassem a largura do card.
+                */
+
+                const textoLimitado =
+                    pdf.splitTextToSize(
+                        valorSeguro,
+                        65
+                    );
+
+                pdf.text(
+                    textoLimitado,
+                    x,
+                    y
+                );
+
+            }
+
+
+            /* =====================================================
+               CARD
+            ===================================================== */
+
+            function desenharCard(
+                x,
+                y,
+                larguraCard,
+                alturaCard,
+                cor
+            ) {
+
+                pdf.setFillColor(
+                    ...cor
+                );
+
+                pdf.roundedRect(
+                    x,
+                    y,
+                    larguraCard,
+                    alturaCard,
+                    4,
+                    4,
+                    "F"
+                );
+
+            }
+
+
+            /* =====================================================
+               TÍTULO DE SEÇÃO
+            ===================================================== */
+
+            function tituloSecao(
+                titulo,
+                y,
+                corLinha
+            ) {
+
+                pdf.setFont(
+                    "helvetica",
+                    "bold"
+                );
+
+                pdf.setFontSize(
+                    11.5
+                );
+
+                pdf.setTextColor(
+                    ...lilasEscuro
+                );
+
+                pdf.text(
+                    titulo,
+                    20,
+                    y
+                );
+
+                pdf.setDrawColor(
+                    ...corLinha
+                );
+
+                pdf.setLineWidth(
+                    1
+                );
+
+                pdf.line(
+                    20,
+                    y + 4,
+                    44,
+                    y + 4
+                );
+
+            }
+
+
+            /* =====================================================
+               FUNDO
+            ===================================================== */
+
+            pdf.setFillColor(
+                ...begeClaro
+            );
+
+            pdf.rect(
+                0,
+                0,
+                largura,
+                altura,
+                "F"
+            );
+
+
+            /* =====================================================
+               CABEÇALHO
+            ===================================================== */
+
+            pdf.setFillColor(
+                ...lilas
+            );
+
+            pdf.rect(
+                0,
+                0,
+                largura,
+                48,
+                "F"
+            );
+
+
+            /* =====================================================
+               FAIXA AZUL
+            ===================================================== */
+
+            pdf.setFillColor(
+                ...azulClaro
+            );
+
+            pdf.rect(
+                0,
+                44,
+                largura,
+                4,
+                "F"
+            );
+
+
+            /* =====================================================
+               DECORAÇÕES
+            ===================================================== */
+
+            desenharQuebraCabeca(
+                largura - 38,
+                7,
+                9,
+                rosa
+            );
+
+            desenharQuebraCabeca(
+                largura - 25,
+                18,
+                7,
+                azulClaro
+            );
+
+            desenharQuebraCabeca(
+                8,
+                31,
+                7,
+                bege
+            );
+
+
+            /* =====================================================
+               LOGO
+            ===================================================== */
+
+            try {
+
+                const logo =
+                    await carregarImagemPDF(
+                        "logo_tenda1.png"
+                    );
+
+                const logoLargura =
+                    38;
+
+                const proporcao =
+                    logo.height /
+                    logo.width;
+
+                const logoAltura =
+                    logoLargura *
+                    proporcao;
+
+                pdf.addImage(
+                    logo,
+                    "PNG",
+                    18,
+                    5,
+                    logoLargura,
+                    logoAltura
+                );
+
+            } catch (erroLogo) {
+
+                console.warn(
+                    "Logo não encontrada:",
+                    erroLogo
+                );
+
+                pdf.setFont(
+                    "helvetica",
+                    "bold"
+                );
+
+                pdf.setFontSize(
+                    15
+                );
+
+                pdf.setTextColor(
+                    ...branco
+                );
+
+                pdf.text(
+                    "TENDA DO CUIDAR",
+                    18,
+                    19
+                );
+
+            }
+
+
+            /* =====================================================
+               INFORMAÇÕES DO CABEÇALHO
+            ===================================================== */
+
+            pdf.setFont(
+                "helvetica",
+                "bold"
+            );
+
+            pdf.setFontSize(
+                8
+            );
+
+            pdf.setTextColor(
+                ...branco
+            );
+
+            pdf.text(
+                "AGENDAMENTO",
+                68,
+                21
+            );
+
+            pdf.setFont(
+                "helvetica",
+                "normal"
+            );
+
+            pdf.setFontSize(
+                7
+            );
+
+            pdf.text(
+                "Comprovante de atendimento",
+                68,
+                28
+            );
+
+
+            /* =====================================================
+               ID
+            ===================================================== */
+
+            if (dados.id) {
+
+                pdf.setFont(
+                    "helvetica",
+                    "bold"
+                );
+
+                pdf.setFontSize(
+                    7
+                );
+
+                pdf.text(
+                    `Nº ${dados.id}`,
+                    largura - 18,
+                    34,
+                    {
+                        align: "right"
+                    }
+                );
+
+            }
+
+
+            /* =====================================================
+               TÍTULO PRINCIPAL
+            ===================================================== */
+
+            pdf.setFont(
+                "helvetica",
+                "bold"
+            );
+
+            pdf.setFontSize(
+                17
+            );
+
+            pdf.setTextColor(
+                ...texto
+            );
+
+            pdf.text(
+                "Agendamento confirmado",
+                20,
+                62
+            );
+
+
+            pdf.setFont(
+                "helvetica",
+                "normal"
+            );
+
+            pdf.setFontSize(
+                9
+            );
+
+            pdf.setTextColor(
+                ...cinza
+            );
+
+            pdf.text(
+                "Seu atendimento foi registrado com sucesso.",
+                20,
+                69
+            );
+
+
+            /* =====================================================
+               DECORAÇÃO
+            ===================================================== */
+
+            pdf.setDrawColor(
+                ...azulClaro
+            );
+
+            pdf.setLineWidth(
+                1
+            );
+
+            pdf.line(
+                20,
+                76,
+                48,
+                76
+            );
+
+            pdf.setDrawColor(
+                ...lilas
+            );
+
+            pdf.line(
+                52,
+                76,
+                70,
+                76
+            );
+
+            pdf.setDrawColor(
+                ...rosa
+            );
+
+            pdf.line(
+                74,
+                76,
+                85,
+                76
+            );
+
+
+            /* =====================================================
+               CARD DO ATENDIMENTO
+            ===================================================== */
+
+            desenharCard(
+                15,
+                85,
+                largura - 30,
+                58,
+                fundoCard
+            );
+
+
+            /* =====================================================
+               BARRA LATERAL
+            ===================================================== */
+
+            pdf.setFillColor(
+                ...azulClaro
+            );
+
+            pdf.roundedRect(
+                15,
+                85,
+                4,
+                58,
+                2,
+                2,
+                "F"
+            );
+
+
+            /* =====================================================
+               TÍTULO DO CARD
+            ===================================================== */
+
+            pdf.setFont(
+                "helvetica",
+                "bold"
+            );
+
+            pdf.setFontSize(
+                10
+            );
+
+            pdf.setTextColor(
+                ...azulEscuro
+            );
+
+            pdf.text(
+                "DADOS DO ATENDIMENTO",
+                25,
+                97
+            );
+
+
+            /* =====================================================
+               PROFISSIONAL
+            ===================================================== */
+
+            escreverLabel(
+                "Profissional",
+                25,
+                108
+            );
+
+            escreverValor(
+                dados.profissional,
+                25,
+                116,
+                9.5
+            );
+
+
+            /* =====================================================
+               HORÁRIO
+            ===================================================== */
+
+            escreverLabel(
+                "Horário",
+                110,
+                108
+            );
+
+            escreverValor(
+                dados.horario,
+                110,
+                116,
+                9.5
+            );
+
+
+            /* =====================================================
+               DATA
+            ===================================================== */
+
+            escreverLabel(
+                "Data",
+                25,
+                130
+            );
+
+            escreverValor(
+                dados.data,
+                25,
+                138,
+                9.5
+            );
+
+
+            /* =====================================================
+               DECORAÇÃO DO CARD
+            ===================================================== */
+
+            desenharQuebraCabeca(
+                largura - 35,
+                122,
+                7,
+                bege
+            );
+
+
+            /* =====================================================
+               DADOS DA CRIANÇA
+            ===================================================== */
+
+            tituloSecao(
+                "Dados da criança",
+                158,
+                lilas
+            );
+
+
+            /* =====================================================
+               CARD CRIANÇA
+            ===================================================== */
+
+            desenharCard(
+                15,
+                166,
+                largura - 30,
+                31,
+                bege
+            );
+
+
+            escreverLabel(
+                "Nome completo",
+                23,
+                177
+            );
+
+            escreverValor(
+                dados.crianca,
+                23,
+                187,
+                10
+            );
+
+
+            /* =====================================================
+               DADOS DO RESPONSÁVEL
+            ===================================================== */
+
+            tituloSecao(
+                "Dados do responsável",
+                211,
+                azulClaro
+            );
+
+
+            /* =====================================================
+               CARD RESPONSÁVEL
+            ===================================================== */
+
+            desenharCard(
+                15,
+                219,
+                largura - 30,
+                55,
+                rosaClaro
+            );
+
+
+            /* =====================================================
+               NOME DO RESPONSÁVEL
+            ===================================================== */
+
+            escreverLabel(
+                "Nome completo",
+                23,
+                230
+            );
+
+            escreverValor(
+                dados.responsavel,
+                23,
+                238,
+                9.5
+            );
+
+
+            /* =====================================================
+               WHATSAPP
+            ===================================================== */
+
+            escreverLabel(
+                "WhatsApp",
+                23,
+                251
+            );
+
+            escreverValor(
+                dados.whatsapp,
+                23,
+                260,
+                9
+            );
+
+
+            /* =====================================================
+               E-MAIL
+            ===================================================== */
+
+            if (dados.email) {
+
+                escreverLabel(
+                    "E-mail",
+                    110,
+                    251
+                );
+
+                escreverValor(
+                    dados.email,
+                    110,
+                    260,
+                    8.5
+                );
+
+            }
+
+
+            /* =====================================================
+               OBSERVAÇÕES
+            ===================================================== */
+
+            let observacaoY =
+                288;
+
+
+            if (dados.observacoes) {
+
+                tituloSecao(
+                    "Observações",
+                    observacaoY,
+                    rosa
+                );
+
+
+                const observacoes =
+                    pdf.splitTextToSize(
+                        textoSeguro(
+                            dados.observacoes
+                        ),
+                        largura - 40
+                    );
+
+
+                pdf.setFont(
+                    "helvetica",
+                    "normal"
+                );
+
+                pdf.setFontSize(
+                    8.5
+                );
+
+                pdf.setTextColor(
+                    ...texto
+                );
+
+                pdf.text(
+                    observacoes,
+                    20,
+                    observacaoY + 12
+                );
+
+            }
+
+
+            /* =====================================================
+               RODAPÉ
+            ===================================================== */
+
+            pdf.setFillColor(
+                ...lilas
+            );
+
+            pdf.rect(
+                0,
+                altura - 25,
+                largura,
+                25,
+                "F"
+            );
+
+
+            /* =====================================================
+               FAIXA ROSA
+            ===================================================== */
+
+            pdf.setFillColor(
+                ...rosa
+            );
+
+            pdf.rect(
+                0,
+                altura - 4,
+                largura,
+                4,
+                "F"
+            );
+
+
+            /* =====================================================
+               QUEBRA-CABEÇAS DO RODAPÉ
+            ===================================================== */
+
+            desenharQuebraCabeca(
+                largura - 43,
+                altura - 20,
+                8,
+                azulClaro
+            );
+
+            desenharQuebraCabeca(
+                largura - 31,
+                altura - 15,
+                6,
+                bege
+            );
+
+            desenharQuebraCabeca(
+                largura - 21,
+                altura - 22,
+                5,
+                rosa
+            );
+
+
+            /* =====================================================
+               TEXTO DO RODAPÉ
+            ===================================================== */
+
+            pdf.setTextColor(
+                ...branco
+            );
+
+            pdf.setFont(
+                "helvetica",
+                "bold"
+            );
+
+            pdf.setFontSize(
+                8.5
+            );
+
+            pdf.text(
+                "TENDA DO CUIDAR",
+                20,
+                altura - 14
+            );
+
+
+            pdf.setFont(
+                "helvetica",
+                "normal"
+            );
+
+            pdf.setFontSize(
+                6.8
+            );
+
+            pdf.text(
+                "Cuidado, acolhimento e desenvolvimento.",
+                20,
+                altura - 8
+            );
+
+
+            /* =====================================================
+               NOME DO ARQUIVO
+            ===================================================== */
+
+            const nomeArquivoBase =
                 textoSeguro(
-                    dados.observacoes
-                ),
-                largura - 40
+                    dados.crianca
+                )
+                    .normalize("NFD")
+                    .replace(
+                        /[\u0300-\u036f]/g,
+                        ""
+                    )
+                    .replace(
+                        /[^a-zA-Z0-9]+/g,
+                        "-"
+                    )
+                    .replace(
+                        /^-+|-+$/g,
+                        ""
+                    );
+
+
+            const nomeArquivo =
+                `agendamento-${nomeArquivoBase || "tenda-do-cuidar"}.pdf`;
+
+
+            /* =====================================================
+               SALVAR
+            ===================================================== */
+
+            pdf.save(
+                nomeArquivo
             );
 
 
-        pdf.setFont(
-            "helvetica",
-            "normal"
-        );
+            return nomeArquivo;
 
-        pdf.setFontSize(
-            8.5
-        );
-
-        pdf.setTextColor(
-            ...texto
-        );
-
-        pdf.text(
-            observacoes,
-            20,
-            observacaoY + 12
-        );
-
-    }
-
-
-    /* =====================================================
-       RODAPÉ
-    ===================================================== */
-
-    pdf.setFillColor(
-        ...lilas
-    );
-
-    pdf.rect(
-        0,
-        altura - 25,
-        largura,
-        25,
-        "F"
-    );
-
-
-    /* =====================================================
-       FAIXA ROSA
-    ===================================================== */
-
-    pdf.setFillColor(
-        ...rosa
-    );
-
-    pdf.rect(
-        0,
-        altura - 4,
-        largura,
-        4,
-        "F"
-    );
-
-
-    /* =====================================================
-       QUEBRA-CABEÇAS DO RODAPÉ
-    ===================================================== */
-
-    desenharQuebraCabeca(
-        largura - 43,
-        altura - 20,
-        8,
-        azulClaro
-    );
-
-    desenharQuebraCabeca(
-        largura - 31,
-        altura - 15,
-        6,
-        bege
-    );
-
-    desenharQuebraCabeca(
-        largura - 21,
-        altura - 22,
-        5,
-        rosa
-    );
-
-
-    /* =====================================================
-       TEXTO DO RODAPÉ
-    ===================================================== */
-
-    pdf.setTextColor(
-        ...branco
-    );
-
-    pdf.setFont(
-        "helvetica",
-        "bold"
-    );
-
-    pdf.setFontSize(
-        8.5
-    );
-
-    pdf.text(
-        "TENDA DO CUIDAR",
-        20,
-        altura - 14
-    );
-
-
-    pdf.setFont(
-        "helvetica",
-        "normal"
-    );
-
-    pdf.setFontSize(
-        6.8
-    );
-
-    pdf.text(
-        "Cuidado, acolhimento e desenvolvimento.",
-        20,
-        altura - 8
-    );
-
-
-    /* =====================================================
-       NOME DO ARQUIVO
-    ===================================================== */
-
-    const nomeArquivoBase =
-        textoSeguro(
-            dados.crianca
-        )
-        .normalize("NFD")
-        .replace(
-            /[\u0300-\u036f]/g,
-            ""
-        )
-        .replace(
-            /[^a-zA-Z0-9]+/g,
-            "-"
-        )
-        .replace(
-            /^-+|-+$/g,
-            ""
-        );
-
-
-    const nomeArquivo =
-        `agendamento-${nomeArquivoBase || "tenda-do-cuidar"}.pdf`;
-
-
-    /* =====================================================
-       SALVAR
-    ===================================================== */
-
-    pdf.save(
-        nomeArquivo
-    );
-
-
-    return nomeArquivo;
-
-}
-
-
-/* =========================================================
-   MENSAGEM DO AGENDAMENTO
-========================================================= */
-
-function mostrarMensagem(
-    elemento,
-    texto,
-    tipo
-) {
-
-    if (!elemento) {
-        return;
-    }
-
-
-    elemento.textContent =
-        texto;
-
-
-    elemento.style.color =
-        tipo === "erro"
-            ? "#d9534f"
-            : tipo === "sucesso"
-                ? "#2e9d62"
-                : "";
-
-}
-
-
-/* =========================================================
-   TEMA CLARO / ESCURO
-========================================================= */
-
-const Theme = {
-
-    init: function () {
-
-        this.root =
-            document.documentElement;
-
-
-        this.toggleBtn =
-            document.getElementById(
-                "themeToggle"
-            );
-
-
-        if (!this.toggleBtn) {
-            return;
         }
 
 
-        try {
+        /* =========================================================
+           MENSAGEM DO AGENDAMENTO
+        ========================================================= */
 
-            const temaSalvo =
-                localStorage.getItem(
-                    THEME_KEY
-                );
+        function mostrarMensagem(
+            elemento,
+            texto,
+            tipo
+        ) {
 
-
-            if (temaSalvo) {
-
-                this.root.setAttribute(
-                    "data-theme",
-                    temaSalvo
-                );
-
+            if (!elemento) {
+                return;
             }
 
-        } catch (e) { }
+
+            elemento.textContent =
+                texto;
 
 
-        this.updateLabel();
+            elemento.style.color =
+                tipo === "erro"
+                    ? "#d9534f"
+                    : tipo === "sucesso"
+                        ? "#2e9d62"
+                        : "";
+
+        }
 
 
-        this.toggleBtn.addEventListener(
-            "click",
-            () => {
+        /* =========================================================
+           TEMA CLARO / ESCURO
+        ========================================================= */
 
-                const atual =
-                    this.root.getAttribute(
-                        "data-theme"
-                    ) === "dark"
-                        ? "dark"
-                        : "light";
+        const Theme = {
 
+            init: function () {
 
-                const proximo =
-                    atual === "dark"
-                        ? "light"
-                        : "dark";
+                this.root =
+                    document.documentElement;
 
 
-                this.root.setAttribute(
-                    "data-theme",
-                    proximo
-                );
+                this.toggleBtn =
+                    document.getElementById(
+                        "themeToggle"
+                    );
+
+
+                if (!this.toggleBtn) {
+                    return;
+                }
 
 
                 try {
 
-                    localStorage.setItem(
-                        THEME_KEY,
-                        proximo
-                    );
+                    const temaSalvo =
+                        localStorage.getItem(
+                            THEME_KEY
+                        );
+
+
+                    if (temaSalvo) {
+
+                        this.root.setAttribute(
+                            "data-theme",
+                            temaSalvo
+                        );
+
+                    }
 
                 } catch (e) { }
 
 
                 this.updateLabel();
 
-            }
-        );
 
-    },
+                this.toggleBtn.addEventListener(
+                    "click",
+                    () => {
 
-
-    updateLabel: function () {
-
-        if (!this.toggleBtn) {
-            return;
-        }
-
-
-        const isDark =
-            this.root.getAttribute(
-                "data-theme"
-            ) === "dark";
+                        const atual =
+                            this.root.getAttribute(
+                                "data-theme"
+                            ) === "dark"
+                                ? "dark"
+                                : "light";
 
 
-        const label =
-            isDark
-                ? "Ativar modo claro"
-                : "Ativar modo escuro";
+                        const proximo =
+                            atual === "dark"
+                                ? "light"
+                                : "dark";
 
 
-        this.toggleBtn.setAttribute(
-            "aria-label",
-            label
-        );
+                        this.root.setAttribute(
+                            "data-theme",
+                            proximo
+                        );
 
 
-        this.toggleBtn.setAttribute(
-            "title",
-            label
-        );
+                        try {
 
-    }
+                            localStorage.setItem(
+                                THEME_KEY,
+                                proximo
+                            );
 
-};
-
-
-/* =========================================================
-   SCROLL PROGRESS
-========================================================= */
-
-const ScrollProgressBar = {
-
-    init: function () {
-
-        const bar =
-            document.getElementById(
-                "scrollProgress"
-            );
+                        } catch (e) { }
 
 
-        if (!bar) {
-            return;
-        }
+                        this.updateLabel();
 
-
-        function update() {
-
-            const scrollTop =
-                window.scrollY;
-
-
-            const docHeight =
-                document.documentElement
-                    .scrollHeight -
-                window.innerHeight;
-
-
-            const pct =
-                docHeight > 0
-                    ? (
-                        scrollTop /
-                        docHeight
-                    ) * 100
-                    : 0;
-
-
-            bar.style.width =
-                `${pct}%`;
-
-        }
-
-
-        window.addEventListener(
-            "scroll",
-            update,
-            {
-                passive: true
-            }
-        );
-
-
-        window.addEventListener(
-            "resize",
-            update
-        );
-
-
-        update();
-
-    }
-
-};
-
-
-/* =========================================================
-   HEADER
-========================================================= */
-
-const Header = {
-
-    init: function () {
-
-        const header =
-            document.getElementById(
-                "siteHeader"
-            );
-
-
-        if (!header) {
-            return;
-        }
-
-
-        function onScroll() {
-
-            if (
-                window.scrollY > 40
-            ) {
-
-                header.classList.add(
-                    "scrolled"
+                    }
                 );
 
-            } else {
+            },
 
-                header.classList.remove(
-                    "scrolled"
+
+            updateLabel: function () {
+
+                if (!this.toggleBtn) {
+                    return;
+                }
+
+
+                const isDark =
+                    this.root.getAttribute(
+                        "data-theme"
+                    ) === "dark";
+
+
+                const label =
+                    isDark
+                        ? "Ativar modo claro"
+                        : "Ativar modo escuro";
+
+
+                this.toggleBtn.setAttribute(
+                    "aria-label",
+                    label
+                );
+
+
+                this.toggleBtn.setAttribute(
+                    "title",
+                    label
                 );
 
             }
 
-        }
+        };
 
 
-        window.addEventListener(
-            "scroll",
-            onScroll,
-            {
-                passive: true
-            }
-        );
+        /* =========================================================
+           SCROLL PROGRESS
+        ========================================================= */
+
+        const ScrollProgressBar = {
+
+            init: function () {
+
+                const bar =
+                    document.getElementById(
+                        "scrollProgress"
+                    );
 
 
-        onScroll();
-
-    }
-
-};
+                if (!bar) {
+                    return;
+                }
 
 
-/* =========================================================
-   MENU MOBILE
-========================================================= */
+                function update() {
 
-const MobileMenu = {
-
-    init: function () {
-
-        const btn =
-            document.getElementById(
-                "hamburgerBtn"
-            );
+                    const scrollTop =
+                        window.scrollY;
 
 
-        const nav =
-            document.getElementById(
-                "mobileNav"
-            );
+                    const docHeight =
+                        document.documentElement
+                            .scrollHeight -
+                        window.innerHeight;
 
 
-        const overlay =
-            document.getElementById(
-                "navOverlay"
-            );
+                    const pct =
+                        docHeight > 0
+                            ? (
+                                scrollTop /
+                                docHeight
+                            ) * 100
+                            : 0;
 
 
-        const closeBtn =
-            document.getElementById(
-                "mobileNavClose"
-            );
-
-
-        if (!btn || !nav) {
-            return;
-        }
-
-
-        function open() {
-
-            nav.classList.add(
-                "open"
-            );
-
-
-            if (overlay) {
-
-                overlay.classList.add(
-                    "open"
-                );
-
-            }
-
-
-            btn.classList.add(
-                "open"
-            );
-
-
-            btn.setAttribute(
-                "aria-expanded",
-                "true"
-            );
-
-
-            document.body.style.overflow =
-                "hidden";
-
-        }
-
-
-        function close() {
-
-            nav.classList.remove(
-                "open"
-            );
-
-
-            if (overlay) {
-
-                overlay.classList.remove(
-                    "open"
-                );
-
-            }
-
-
-            btn.classList.remove(
-                "open"
-            );
-
-
-            btn.setAttribute(
-                "aria-expanded",
-                "false"
-            );
-
-
-            document.body.style.overflow =
-                "";
-
-        }
-
-
-        btn.addEventListener(
-            "click",
-            () => {
-
-                if (
-                    nav.classList.contains(
-                        "open"
-                    )
-                ) {
-
-                    close();
-
-                } else {
-
-                    open();
+                    bar.style.width =
+                        `${pct}%`;
 
                 }
 
+
+                window.addEventListener(
+                    "scroll",
+                    update,
+                    {
+                        passive: true
+                    }
+                );
+
+
+                window.addEventListener(
+                    "resize",
+                    update
+                );
+
+
+                update();
+
             }
-        );
+
+        };
 
 
-        if (closeBtn) {
+        /* =========================================================
+           HEADER
+        ========================================================= */
 
-            closeBtn.addEventListener(
-                "click",
-                close
-            );
+        const Header = {
 
-        }
+            init: function () {
 
-
-        if (overlay) {
-
-            overlay.addEventListener(
-                "click",
-                close
-            );
-
-        }
+                const header =
+                    document.getElementById(
+                        "siteHeader"
+                    );
 
 
-        nav.querySelectorAll("a")
-            .forEach(
-                link => {
+                if (!header) {
+                    return;
+                }
 
-                    link.addEventListener(
+
+                function onScroll() {
+
+                    if (
+                        window.scrollY > 40
+                    ) {
+
+                        header.classList.add(
+                            "scrolled"
+                        );
+
+                    } else {
+
+                        header.classList.remove(
+                            "scrolled"
+                        );
+
+                    }
+
+                }
+
+
+                window.addEventListener(
+                    "scroll",
+                    onScroll,
+                    {
+                        passive: true
+                    }
+                );
+
+
+                onScroll();
+
+            }
+
+        };
+
+
+        /* =========================================================
+           MENU MOBILE
+        ========================================================= */
+
+        const MobileMenu = {
+
+            init: function () {
+
+                const btn =
+                    document.getElementById(
+                        "hamburgerBtn"
+                    );
+
+
+                const nav =
+                    document.getElementById(
+                        "mobileNav"
+                    );
+
+
+                const overlay =
+                    document.getElementById(
+                        "navOverlay"
+                    );
+
+
+                const closeBtn =
+                    document.getElementById(
+                        "mobileNavClose"
+                    );
+
+
+                if (!btn || !nav) {
+                    return;
+                }
+
+
+                function open() {
+
+                    nav.classList.add(
+                        "open"
+                    );
+
+
+                    if (overlay) {
+
+                        overlay.classList.add(
+                            "open"
+                        );
+
+                    }
+
+
+                    btn.classList.add(
+                        "open"
+                    );
+
+
+                    btn.setAttribute(
+                        "aria-expanded",
+                        "true"
+                    );
+
+
+                    document.body.style.overflow =
+                        "hidden";
+
+                }
+
+
+                function close() {
+
+                    nav.classList.remove(
+                        "open"
+                    );
+
+
+                    if (overlay) {
+
+                        overlay.classList.remove(
+                            "open"
+                        );
+
+                    }
+
+
+                    btn.classList.remove(
+                        "open"
+                    );
+
+
+                    btn.setAttribute(
+                        "aria-expanded",
+                        "false"
+                    );
+
+
+                    document.body.style.overflow =
+                        "";
+
+                }
+
+
+                btn.addEventListener(
+                    "click",
+                    () => {
+
+                        if (
+                            nav.classList.contains(
+                                "open"
+                            )
+                        ) {
+
+                            close();
+
+                        } else {
+
+                            open();
+
+                        }
+
+                    }
+                );
+
+
+                if (closeBtn) {
+
+                    closeBtn.addEventListener(
                         "click",
                         close
                     );
 
                 }
-            );
 
 
-        document.addEventListener(
-            "keydown",
-            e => {
+                if (overlay) {
 
-                if (
-                    e.key === "Escape"
-                ) {
-
-                    close();
-
-                }
-
-            }
-        );
-
-    }
-
-};
-
-
-/* =========================================================
-   ANIMAÇÕES
-========================================================= */
-
-const ScrollReveal = {
-
-    init: function () {
-
-        const items =
-            document.querySelectorAll(
-                ".reveal, .reveal-stagger"
-            );
-
-
-        if (
-            !(
-                "IntersectionObserver"
-                in window
-            )
-        ) {
-
-            items.forEach(
-                el => {
-
-                    el.classList.add(
-                        "in-view"
+                    overlay.addEventListener(
+                        "click",
+                        close
                     );
 
                 }
-            );
 
 
-            return;
+                nav.querySelectorAll("a")
+                    .forEach(
+                        link => {
 
-        }
-
-
-        const observer =
-            new IntersectionObserver(
-                entries => {
-
-                    entries.forEach(
-                        entry => {
-
-                            if (
-                                entry.isIntersecting
-                            ) {
-
-                                entry.target
-                                    .classList
-                                    .add(
-                                        "in-view"
-                                    );
-
-
-                                observer.unobserve(
-                                    entry.target
-                                );
-
-                            }
+                            link.addEventListener(
+                                "click",
+                                close
+                            );
 
                         }
                     );
 
-                },
-                {
-                    threshold:
-                        0.12,
 
-                    rootMargin:
-                        "0px 0px -60px 0px"
-                }
-            );
+                document.addEventListener(
+                    "keydown",
+                    e => {
 
+                        if (
+                            e.key === "Escape"
+                        ) {
 
-        items.forEach(
-            el => {
+                            close();
 
-                observer.observe(
-                    el
+                        }
+
+                    }
                 );
 
             }
-        );
 
-    }
-
-};
+        };
 
 
-/* =========================================================
-   FAQ
-========================================================= */
+        /* =========================================================
+           ANIMAÇÕES
+        ========================================================= */
 
-const Faq = {
+        const ScrollReveal = {
 
-    init: function () {
+            init: function () {
 
-        const items =
-            document.querySelectorAll(
-                ".faq-item"
-            );
-
-
-        items.forEach(
-            item => {
-
-                const question =
-                    item.querySelector(
-                        ".faq-question"
+                const items =
+                    document.querySelectorAll(
+                        ".reveal, .reveal-stagger"
                     );
 
 
-                if (!question) {
+                if (
+                    !(
+                        "IntersectionObserver"
+                        in window
+                    )
+                ) {
+
+                    items.forEach(
+                        el => {
+
+                            el.classList.add(
+                                "in-view"
+                            );
+
+                        }
+                    );
+
+
                     return;
+
                 }
 
 
-                question.addEventListener(
-                    "click",
-                    () => {
+                const observer =
+                    new IntersectionObserver(
+                        entries => {
 
-                        const isOpen =
-                            item.classList.contains(
-                                "open"
+                            entries.forEach(
+                                entry => {
+
+                                    if (
+                                        entry.isIntersecting
+                                    ) {
+
+                                        entry.target
+                                            .classList
+                                            .add(
+                                                "in-view"
+                                            );
+
+
+                                        observer.unobserve(
+                                            entry.target
+                                        );
+
+                                    }
+
+                                }
+                            );
+
+                        },
+                        {
+                            threshold:
+                                0.12,
+
+                            rootMargin:
+                                "0px 0px -60px 0px"
+                        }
+                    );
+
+
+                items.forEach(
+                    el => {
+
+                        observer.observe(
+                            el
+                        );
+
+                    }
+                );
+
+            }
+
+        };
+
+
+        /* =========================================================
+           FAQ
+        ========================================================= */
+
+        const Faq = {
+
+            init: function () {
+
+                const items =
+                    document.querySelectorAll(
+                        ".faq-item"
+                    );
+
+
+                items.forEach(
+                    item => {
+
+                        const question =
+                            item.querySelector(
+                                ".faq-question"
                             );
 
 
-                        items.forEach(
-                            other => {
-
-                                other.classList.remove(
-                                    "open"
-                                );
+                        if (!question) {
+                            return;
+                        }
 
 
-                                const q =
-                                    other.querySelector(
-                                        ".faq-question"
+                        question.addEventListener(
+                            "click",
+                            () => {
+
+                                const isOpen =
+                                    item.classList.contains(
+                                        "open"
                                     );
 
 
-                                if (q) {
+                                items.forEach(
+                                    other => {
 
-                                    q.setAttribute(
+                                        other.classList.remove(
+                                            "open"
+                                        );
+
+
+                                        const q =
+                                            other.querySelector(
+                                                ".faq-question"
+                                            );
+
+
+                                        if (q) {
+
+                                            q.setAttribute(
+                                                "aria-expanded",
+                                                "false"
+                                            );
+
+                                        }
+
+                                    }
+                                );
+
+
+                                if (!isOpen) {
+
+                                    item.classList.add(
+                                        "open"
+                                    );
+
+
+                                    question.setAttribute(
                                         "aria-expanded",
-                                        "false"
+                                        "true"
                                     );
 
                                 }
@@ -9041,17 +9124,346 @@ const Faq = {
                             }
                         );
 
+                    }
+                );
 
-                        if (!isOpen) {
+            }
 
-                            item.classList.add(
-                                "open"
+        };
+
+
+        /* =========================================================
+           NAVEGAÇÃO SUAVE
+        ========================================================= */
+
+        const SmoothNav = {
+
+            init: function () {
+
+                document
+                    .querySelectorAll(
+                        'a[href^="#"]'
+                    )
+                    .forEach(
+                        link => {
+
+                            link.addEventListener(
+                                "click",
+                                e => {
+
+                                    const id =
+                                        link.getAttribute(
+                                            "href"
+                                        );
+
+
+                                    if (
+                                        !id ||
+                                        id.length < 2
+                                    ) {
+
+                                        return;
+
+                                    }
+
+
+                                    const target =
+                                        document.querySelector(
+                                            id
+                                        );
+
+
+                                    if (target) {
+
+                                        e.preventDefault();
+
+
+                                        const offset =
+                                            90;
+
+
+                                        const top =
+                                            target
+                                                .getBoundingClientRect()
+                                                .top +
+                                            window.pageYOffset -
+                                            offset;
+
+
+                                        window.scrollTo({
+
+                                            top,
+
+                                            behavior:
+                                                "smooth"
+
+                                        });
+
+                                    }
+
+                                }
+                            );
+
+                        }
+                    );
+
+            }
+
+        };
+
+
+        /* =========================================================
+           WHATSAPP
+        ========================================================= */
+
+        const WhatsappLinks = {
+
+            init: function () {
+
+                const defaultMessage =
+                    "Olá! Gostaria de agendar uma avaliação na Tenda do Cuidar.";
+
+
+                document
+                    .querySelectorAll(
+                        ".whatsapp-cta"
+                    )
+                    .forEach(
+                        link => {
+
+                            const url =
+                                "https://wa.me/" +
+                                WHATSAPP_NUMBER +
+                                "?text=" +
+                                encodeURIComponent(
+                                    defaultMessage
+                                );
+
+
+                            link.setAttribute(
+                                "href",
+                                url
                             );
 
 
-                            question.setAttribute(
-                                "aria-expanded",
-                                "true"
+                            link.setAttribute(
+                                "target",
+                                "_blank"
+                            );
+
+
+                            link.setAttribute(
+                                "rel",
+                                "noopener"
+                            );
+
+                        }
+                    );
+
+            }
+
+        };
+
+
+        /* =========================================================
+           FORMULÁRIO DE PRÉ-ATENDIMENTO
+        ========================================================= */
+
+        const PreForm = {
+
+            currentStep: 1,
+
+            totalSteps: 5,
+
+
+            init: function () {
+
+                this.form =
+                    document.getElementById(
+                        "preForm"
+                    );
+
+
+                if (!this.form) {
+                    return;
+                }
+
+
+                this.steps =
+                    this.form.querySelectorAll(
+                        ".form-step"
+                    );
+
+
+                this.progressSteps =
+                    document.querySelectorAll(
+                        ".progress-step"
+                    );
+
+
+                this.progressFill =
+                    document.getElementById(
+                        "progressFill"
+                    );
+
+
+                this.bindNav();
+
+                this.bindConditionals();
+
+                this.bindRadioCardStyling();
+
+                this.bindSubmit();
+
+                this.bindRestart();
+
+                this.updateProgress();
+
+            },
+
+
+            bindNav: function () {
+
+                this.form
+                    .querySelectorAll(
+                        '[data-action="next"]'
+                    )
+                    .forEach(
+                        btn => {
+
+                            btn.addEventListener(
+                                "click",
+                                () => {
+
+                                    if (
+                                        Validation.validateStep(
+                                            this.currentStep
+                                        )
+                                    ) {
+
+                                        this.goToStep(
+                                            this.currentStep + 1
+                                        );
+
+                                    }
+
+                                }
+                            );
+
+                        }
+                    );
+
+
+                this.form
+                    .querySelectorAll(
+                        '[data-action="prev"]'
+                    )
+                    .forEach(
+                        btn => {
+
+                            btn.addEventListener(
+                                "click",
+                                () => {
+
+                                    this.goToStep(
+                                        this.currentStep - 1
+                                    );
+
+                                }
+                            );
+
+                        }
+                    );
+
+            },
+
+
+            goToStep: function (
+                stepNumber
+            ) {
+
+                this.steps.forEach(
+                    stepEl => {
+
+                        stepEl.classList.toggle(
+                            "active",
+                            parseInt(
+                                stepEl.dataset.step,
+                                10
+                            ) === stepNumber
+                        );
+
+                    }
+                );
+
+
+                this.currentStep =
+                    stepNumber;
+
+
+                if (
+                    stepNumber === 5
+                ) {
+
+                    Summary.render();
+
+                }
+
+
+                this.updateProgress();
+
+
+                const shell =
+                    document.querySelector(
+                        ".form-shell"
+                    );
+
+
+                if (shell) {
+
+                    shell.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start"
+                    });
+
+                }
+
+            },
+
+
+            updateProgress: function () {
+
+                this.progressSteps.forEach(
+                    el => {
+
+                        const step =
+                            parseInt(
+                                el.dataset.step,
+                                10
+                            );
+
+
+                        el.classList.remove(
+                            "active",
+                            "done"
+                        );
+
+
+                        if (
+                            step < this.currentStep
+                        ) {
+
+                            el.classList.add(
+                                "done"
+                            );
+
+                        } else if (
+                            step ===
+                            this.currentStep
+                        ) {
+
+                            el.classList.add(
+                                "active"
                             );
 
                         }
@@ -9059,42 +9471,174 @@ const Faq = {
                     }
                 );
 
-            }
-        );
 
-    }
-
-};
+                let pct = 0;
 
 
-/* =========================================================
-   NAVEGAÇÃO SUAVE
-========================================================= */
+                if (
+                    this.currentStep <=
+                    this.totalSteps
+                ) {
 
-const SmoothNav = {
+                    pct =
+                        (
+                            (
+                                this.currentStep -
+                                1
+                            ) /
+                            (
+                                this.totalSteps -
+                                1
+                            )
+                        ) * 100;
 
-    init: function () {
+                } else {
 
-        document
-            .querySelectorAll(
-                'a[href^="#"]'
-            )
-            .forEach(
-                link => {
+                    pct = 100;
 
-                    link.addEventListener(
-                        "click",
-                        e => {
+                }
 
-                            const id =
-                                link.getAttribute(
-                                    "href"
-                                );
 
+                if (this.progressFill) {
+
+                    this.progressFill.style.width =
+                        `${pct}%`;
+
+                }
+
+            },
+
+
+            bindConditionals: function () {
+
+                const diagnosticoRadios =
+                    document.querySelectorAll(
+                        'input[name="diagnostico"]'
+                    );
+
+
+                const condDiagnostico =
+                    document.getElementById(
+                        "cond-diagnosticoTexto"
+                    );
+
+
+                diagnosticoRadios.forEach(
+                    radio => {
+
+                        radio.addEventListener(
+                            "change",
+                            () => {
+
+                                if (
+                                    condDiagnostico
+                                ) {
+
+                                    condDiagnostico.classList.toggle(
+                                        "show",
+                                        radio.value ===
+                                        "Sim" &&
+                                        radio.checked
+                                    );
+
+                                }
+
+                            }
+                        );
+
+                    }
+                );
+
+
+                const nivelSuporte =
+                    document.getElementById(
+                        "nivelSuporte"
+                    );
+
+
+                const condSuporte =
+                    document.getElementById(
+                        "cond-suporteTexto"
+                    );
+
+
+                if (
+                    nivelSuporte &&
+                    condSuporte
+                ) {
+
+                    nivelSuporte.addEventListener(
+                        "change",
+                        () => {
+
+                            condSuporte.classList.toggle(
+                                "show",
+                                nivelSuporte.value ===
+                                "Já foi informado por profissional"
+                            );
+
+                        }
+                    );
+
+                }
+
+
+                const motivo =
+                    document.getElementById(
+                        "motivo"
+                    );
+
+
+                const condMotivo =
+                    document.getElementById(
+                        "cond-motivoOutro"
+                    );
+
+
+                if (
+                    motivo &&
+                    condMotivo
+                ) {
+
+                    motivo.addEventListener(
+                        "change",
+                        () => {
+
+                            condMotivo.classList.toggle(
+                                "show",
+                                motivo.value ===
+                                "Outro"
+                            );
+
+                        }
+                    );
+
+                }
+
+
+                const nascimento =
+                    document.getElementById(
+                        "nascimento"
+                    );
+
+
+                const idade =
+                    document.getElementById(
+                        "idade"
+                    );
+
+
+                if (
+                    nascimento &&
+                    idade
+                ) {
+
+                    nascimento.addEventListener(
+                        "change",
+                        () => {
 
                             if (
-                                !id ||
-                                id.length < 2
+                                !nascimento.value
                             ) {
 
                                 return;
@@ -9102,183 +9646,47 @@ const SmoothNav = {
                             }
 
 
-                            const target =
-                                document.querySelector(
-                                    id
+                            const birth =
+                                new Date(
+                                    nascimento.value
                                 );
 
 
-                            if (target) {
-
-                                e.preventDefault();
-
-
-                                const offset =
-                                    90;
+                            const today =
+                                new Date();
 
 
-                                const top =
-                                    target
-                                        .getBoundingClientRect()
-                                        .top +
-                                    window.pageYOffset -
-                                    offset;
+                            let age =
+                                today.getFullYear() -
+                                birth.getFullYear();
 
 
-                                window.scrollTo({
+                            const month =
+                                today.getMonth() -
+                                birth.getMonth();
 
-                                    top,
-
-                                    behavior:
-                                        "smooth"
-
-                                });
-
-                            }
-
-                        }
-                    );
-
-                }
-            );
-
-    }
-
-};
-
-
-/* =========================================================
-   WHATSAPP
-========================================================= */
-
-const WhatsappLinks = {
-
-    init: function () {
-
-        const defaultMessage =
-            "Olá! Gostaria de agendar uma avaliação na Tenda do Cuidar.";
-
-
-        document
-            .querySelectorAll(
-                ".whatsapp-cta"
-            )
-            .forEach(
-                link => {
-
-                    const url =
-                        "https://wa.me/" +
-                        WHATSAPP_NUMBER +
-                        "?text=" +
-                        encodeURIComponent(
-                            defaultMessage
-                        );
-
-
-                    link.setAttribute(
-                        "href",
-                        url
-                    );
-
-
-                    link.setAttribute(
-                        "target",
-                        "_blank"
-                    );
-
-
-                    link.setAttribute(
-                        "rel",
-                        "noopener"
-                    );
-
-                }
-            );
-
-    }
-
-};
-
-
-/* =========================================================
-   FORMULÁRIO DE PRÉ-ATENDIMENTO
-========================================================= */
-
-const PreForm = {
-
-    currentStep: 1,
-
-    totalSteps: 5,
-
-
-    init: function () {
-
-        this.form =
-            document.getElementById(
-                "preForm"
-            );
-
-
-        if (!this.form) {
-            return;
-        }
-
-
-        this.steps =
-            this.form.querySelectorAll(
-                ".form-step"
-            );
-
-
-        this.progressSteps =
-            document.querySelectorAll(
-                ".progress-step"
-            );
-
-
-        this.progressFill =
-            document.getElementById(
-                "progressFill"
-            );
-
-
-        this.bindNav();
-
-        this.bindConditionals();
-
-        this.bindRadioCardStyling();
-
-        this.bindSubmit();
-
-        this.bindRestart();
-
-        this.updateProgress();
-
-    },
-
-
-    bindNav: function () {
-
-        this.form
-            .querySelectorAll(
-                '[data-action="next"]'
-            )
-            .forEach(
-                btn => {
-
-                    btn.addEventListener(
-                        "click",
-                        () => {
 
                             if (
-                                Validation.validateStep(
-                                    this.currentStep
+                                month < 0 ||
+                                (
+                                    month === 0 &&
+                                    today.getDate() <
+                                    birth.getDate()
                                 )
                             ) {
 
-                                this.goToStep(
-                                    this.currentStep + 1
-                                );
+                                age--;
+
+                            }
+
+
+                            if (
+                                age >= 0 &&
+                                age <= 18
+                            ) {
+
+                                idade.value =
+                                    age;
 
                             }
 
@@ -9286,396 +9694,56 @@ const PreForm = {
                     );
 
                 }
-            );
+
+            },
 
 
-        this.form
-            .querySelectorAll(
-                '[data-action="prev"]'
-            )
-            .forEach(
-                btn => {
+            bindRadioCardStyling: function () {
 
-                    btn.addEventListener(
-                        "click",
-                        () => {
-
-                            this.goToStep(
-                                this.currentStep - 1
-                            );
-
-                        }
-                    );
-
-                }
-            );
-
-    },
-
-
-    goToStep: function (
-        stepNumber
-    ) {
-
-        this.steps.forEach(
-            stepEl => {
-
-                stepEl.classList.toggle(
-                    "active",
-                    parseInt(
-                        stepEl.dataset.step,
-                        10
-                    ) === stepNumber
-                );
-
-            }
-        );
-
-
-        this.currentStep =
-            stepNumber;
-
-
-        if (
-            stepNumber === 5
-        ) {
-
-            Summary.render();
-
-        }
-
-
-        this.updateProgress();
-
-
-        const shell =
-            document.querySelector(
-                ".form-shell"
-            );
-
-
-        if (shell) {
-
-            shell.scrollIntoView({
-                behavior: "smooth",
-                block: "start"
-            });
-
-        }
-
-    },
-
-
-    updateProgress: function () {
-
-        this.progressSteps.forEach(
-            el => {
-
-                const step =
-                    parseInt(
-                        el.dataset.step,
-                        10
-                    );
-
-
-                el.classList.remove(
-                    "active",
-                    "done"
-                );
-
-
-                if (
-                    step < this.currentStep
-                ) {
-
-                    el.classList.add(
-                        "done"
-                    );
-
-                } else if (
-                    step ===
-                    this.currentStep
-                ) {
-
-                    el.classList.add(
-                        "active"
-                    );
-
-                }
-
-            }
-        );
-
-
-        let pct = 0;
-
-
-        if (
-            this.currentStep <=
-            this.totalSteps
-        ) {
-
-            pct =
-                (
-                    (
-                        this.currentStep -
-                        1
-                    ) /
-                    (
-                        this.totalSteps -
-                        1
+                document
+                    .querySelectorAll(
+                        ".radio-cards"
                     )
-                ) * 100;
+                    .forEach(
+                        group => {
 
-        } else {
+                            const inputs =
+                                group.querySelectorAll(
+                                    'input[type="radio"]'
+                                );
 
-            pct = 100;
 
-        }
+                            inputs.forEach(
+                                input => {
 
+                                    input.addEventListener(
+                                        "change",
+                                        () => {
 
-        if (this.progressFill) {
+                                            group
+                                                .querySelectorAll(
+                                                    ".radio-card"
+                                                )
+                                                .forEach(
+                                                    card => {
 
-            this.progressFill.style.width =
-                `${pct}%`;
+                                                        const radio =
+                                                            card.querySelector(
+                                                                "input"
+                                                            );
 
-        }
 
-    },
+                                                        card.classList.toggle(
+                                                            "checked",
+                                                            radio &&
+                                                            radio.checked
+                                                        );
 
-
-    bindConditionals: function () {
-
-        const diagnosticoRadios =
-            document.querySelectorAll(
-                'input[name="diagnostico"]'
-            );
-
-
-        const condDiagnostico =
-            document.getElementById(
-                "cond-diagnosticoTexto"
-            );
-
-
-        diagnosticoRadios.forEach(
-            radio => {
-
-                radio.addEventListener(
-                    "change",
-                    () => {
-
-                        if (
-                            condDiagnostico
-                        ) {
-
-                            condDiagnostico.classList.toggle(
-                                "show",
-                                radio.value ===
-                                "Sim" &&
-                                radio.checked
-                            );
-
-                        }
-
-                    }
-                );
-
-            }
-        );
-
-
-        const nivelSuporte =
-            document.getElementById(
-                "nivelSuporte"
-            );
-
-
-        const condSuporte =
-            document.getElementById(
-                "cond-suporteTexto"
-            );
-
-
-        if (
-            nivelSuporte &&
-            condSuporte
-        ) {
-
-            nivelSuporte.addEventListener(
-                "change",
-                () => {
-
-                    condSuporte.classList.toggle(
-                        "show",
-                        nivelSuporte.value ===
-                        "Já foi informado por profissional"
-                    );
-
-                }
-            );
-
-        }
-
-
-        const motivo =
-            document.getElementById(
-                "motivo"
-            );
-
-
-        const condMotivo =
-            document.getElementById(
-                "cond-motivoOutro"
-            );
-
-
-        if (
-            motivo &&
-            condMotivo
-        ) {
-
-            motivo.addEventListener(
-                "change",
-                () => {
-
-                    condMotivo.classList.toggle(
-                        "show",
-                        motivo.value ===
-                        "Outro"
-                    );
-
-                }
-            );
-
-        }
-
-
-        const nascimento =
-            document.getElementById(
-                "nascimento"
-            );
-
-
-        const idade =
-            document.getElementById(
-                "idade"
-            );
-
-
-        if (
-            nascimento &&
-            idade
-        ) {
-
-            nascimento.addEventListener(
-                "change",
-                () => {
-
-                    if (
-                        !nascimento.value
-                    ) {
-
-                        return;
-
-                    }
-
-
-                    const birth =
-                        new Date(
-                            nascimento.value
-                        );
-
-
-                    const today =
-                        new Date();
-
-
-                    let age =
-                        today.getFullYear() -
-                        birth.getFullYear();
-
-
-                    const month =
-                        today.getMonth() -
-                        birth.getMonth();
-
-
-                    if (
-                        month < 0 ||
-                        (
-                            month === 0 &&
-                            today.getDate() <
-                            birth.getDate()
-                        )
-                    ) {
-
-                        age--;
-
-                    }
-
-
-                    if (
-                        age >= 0 &&
-                        age <= 18
-                    ) {
-
-                        idade.value =
-                            age;
-
-                    }
-
-                }
-            );
-
-        }
-
-    },
-
-
-    bindRadioCardStyling: function () {
-
-        document
-            .querySelectorAll(
-                ".radio-cards"
-            )
-            .forEach(
-                group => {
-
-                    const inputs =
-                        group.querySelectorAll(
-                            'input[type="radio"]'
-                        );
-
-
-                    inputs.forEach(
-                        input => {
-
-                            input.addEventListener(
-                                "change",
-                                () => {
-
-                                    group
-                                        .querySelectorAll(
-                                            ".radio-card"
-                                        )
-                                        .forEach(
-                                            card => {
-
-                                                const radio =
-                                                    card.querySelector(
-                                                        "input"
-                                                    );
-
-
-                                                card.classList.toggle(
-                                                    "checked",
-                                                    radio &&
-                                                    radio.checked
+                                                    }
                                                 );
 
-                                            }
-                                        );
+                                        }
+                                    );
 
                                 }
                             );
@@ -9683,44 +9751,330 @@ const PreForm = {
                         }
                     );
 
-                }
-            );
-
-    },
+            },
 
 
-    bindSubmit: function () {
+            bindSubmit: function () {
 
-        const submitBtn =
-            document.getElementById(
-                "submitWhatsapp"
-            );
-
-
-        if (!submitBtn) {
-            return;
-        }
-
-
-        submitBtn.addEventListener(
-            "click",
-            () => {
-
-                const consentimento =
+                const submitBtn =
                     document.getElementById(
-                        "consentimento"
+                        "submitWhatsapp"
                     );
 
 
-                if (
-                    !consentimento ||
-                    !consentimento.checked
-                ) {
+                if (!submitBtn) {
+                    return;
+                }
 
-                    this.goToStep(3);
 
-                    Validation.showError(
-                        "consentimento"
+                submitBtn.addEventListener(
+                    "click",
+                    () => {
+
+                        const consentimento =
+                            document.getElementById(
+                                "consentimento"
+                            );
+
+
+                        if (
+                            !consentimento ||
+                            !consentimento.checked
+                        ) {
+
+                            this.goToStep(3);
+
+                            Validation.showError(
+                                "consentimento"
+                            );
+
+                            return;
+
+                        }
+
+
+                        const url =
+                            WhatsappBuilder.buildUrl();
+
+
+                        window.open(
+                            url,
+                            "_blank",
+                            "noopener"
+                        );
+
+
+                        this.goToStep(6);
+
+                    }
+                );
+
+            },
+
+
+            bindRestart: function () {
+
+                const restartBtn =
+                    document.getElementById(
+                        "restartForm"
+                    );
+
+
+                if (!restartBtn) {
+                    return;
+                }
+
+
+                restartBtn.addEventListener(
+                    "click",
+                    () => {
+
+                        this.form.reset();
+
+
+                        document
+                            .querySelectorAll(
+                                ".conditional-field"
+                            )
+                            .forEach(
+                                field => {
+
+                                    field.classList.remove(
+                                        "show"
+                                    );
+
+                                }
+                            );
+
+
+                        document
+                            .querySelectorAll(
+                                ".radio-card"
+                            )
+                            .forEach(
+                                card => {
+
+                                    card.classList.remove(
+                                        "checked"
+                                    );
+
+                                }
+                            );
+
+
+                        document
+                            .querySelectorAll(
+                                ".field-group.error"
+                            )
+                            .forEach(
+                                field => {
+
+                                    field.classList.remove(
+                                        "error"
+                                    );
+
+                                }
+                            );
+
+
+                        this.goToStep(1);
+
+                    }
+                );
+
+            }
+
+        };
+
+
+        /* =========================================================
+           VALIDAÇÃO
+        ========================================================= */
+
+        const Validation = {
+
+            rulesByStep: {
+
+                1: [
+                    "nomeResp",
+                    "whatsResp",
+                    "emailResp",
+                    "parentesco"
+                ],
+
+                2: [
+                    "nomeCrianca",
+                    "idade"
+                ],
+
+                3: [
+                    "diagnostico",
+                    "acompanhamento",
+                    "consentimento"
+                ],
+
+                4: [
+                    "motivo",
+                    "tempo"
+                ]
+
+            },
+
+
+            validateStep: function (
+                step
+            ) {
+
+                let valid = true;
+
+
+                const fields =
+                    this.rulesByStep[
+                    step
+                    ] || [];
+
+
+                fields.forEach(
+                    fieldName => {
+
+                        let ok = true;
+
+
+                        if (
+                            fieldName ===
+                            "diagnostico" ||
+                            fieldName ===
+                            "acompanhamento"
+                        ) {
+
+                            ok =
+                                !!document.querySelector(
+                                    `input[name="${fieldName}"]:checked`
+                                );
+
+
+                        } else if (
+                            fieldName ===
+                            "consentimento"
+                        ) {
+
+                            const element =
+                                document.getElementById(
+                                    "consentimento"
+                                );
+
+
+                            ok =
+                                !!(
+                                    element &&
+                                    element.checked
+                                );
+
+
+                        } else if (
+                            fieldName ===
+                            "emailResp"
+                        ) {
+
+                            const element =
+                                document.getElementById(
+                                    "emailResp"
+                                );
+
+
+                            const value =
+                                element
+                                    ? element.value.trim()
+                                    : "";
+
+
+                            ok =
+                                /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+                                    .test(
+                                        value
+                                    );
+
+
+                        } else if (
+                            fieldName ===
+                            "whatsResp"
+                        ) {
+
+                            const element =
+                                document.getElementById(
+                                    "whatsResp"
+                                );
+
+
+                            const digits =
+                                element
+                                    ? element.value.replace(
+                                        /\D/g,
+                                        ""
+                                    )
+                                    : "";
+
+
+                            ok =
+                                digits.length >= 10;
+
+
+                        } else {
+
+                            const target =
+                                document.getElementById(
+                                    fieldName
+                                );
+
+
+                            ok =
+                                !!(
+                                    target &&
+                                    target.value.trim() !== ""
+                                );
+
+                        }
+
+
+                        if (!ok) {
+
+                            valid = false;
+
+                            this.showError(
+                                fieldName
+                            );
+
+                        } else {
+
+                            this.clearError(
+                                fieldName
+                            );
+
+                        }
+
+                    }
+                );
+
+
+                return valid;
+
+            },
+
+
+            showError: function (
+                fieldName
+            ) {
+
+                const group =
+                    document.getElementById(
+                        `grp-${fieldName}`
+                    );
+
+
+                if (group) {
+
+                    group.classList.add(
+                        "error"
                     );
 
                     return;
@@ -9728,419 +10082,130 @@ const PreForm = {
                 }
 
 
-                const url =
-                    WhatsappBuilder.buildUrl();
-
-
-                window.open(
-                    url,
-                    "_blank",
-                    "noopener"
-                );
-
-
-                this.goToStep(6);
-
-            }
-        );
-
-    },
-
-
-    bindRestart: function () {
-
-        const restartBtn =
-            document.getElementById(
-                "restartForm"
-            );
-
-
-        if (!restartBtn) {
-            return;
-        }
-
-
-        restartBtn.addEventListener(
-            "click",
-            () => {
-
-                this.form.reset();
-
-
-                document
-                    .querySelectorAll(
-                        ".conditional-field"
-                    )
-                    .forEach(
-                        field => {
-
-                            field.classList.remove(
-                                "show"
-                            );
-
-                        }
-                    );
-
-
-                document
-                    .querySelectorAll(
-                        ".radio-card"
-                    )
-                    .forEach(
-                        card => {
-
-                            card.classList.remove(
-                                "checked"
-                            );
-
-                        }
-                    );
-
-
-                document
-                    .querySelectorAll(
-                        ".field-group.error"
-                    )
-                    .forEach(
-                        field => {
-
-                            field.classList.remove(
-                                "error"
-                            );
-
-                        }
-                    );
-
-
-                this.goToStep(1);
-
-            }
-        );
-
-    }
-
-};
-
-
-/* =========================================================
-   VALIDAÇÃO
-========================================================= */
-
-const Validation = {
-
-    rulesByStep: {
-
-        1: [
-            "nomeResp",
-            "whatsResp",
-            "emailResp",
-            "parentesco"
-        ],
-
-        2: [
-            "nomeCrianca",
-            "idade"
-        ],
-
-        3: [
-            "diagnostico",
-            "acompanhamento",
-            "consentimento"
-        ],
-
-        4: [
-            "motivo",
-            "tempo"
-        ]
-
-    },
-
-
-    validateStep: function (
-        step
-    ) {
-
-        let valid = true;
-
-
-        const fields =
-            this.rulesByStep[
-                step
-            ] || [];
-
-
-        fields.forEach(
-            fieldName => {
-
-                let ok = true;
-
-
                 if (
-                    fieldName ===
-                    "diagnostico" ||
-                    fieldName ===
-                    "acompanhamento"
-                ) {
-
-                    ok =
-                        !!document.querySelector(
-                            `input[name="${fieldName}"]:checked`
-                        );
-
-
-                } else if (
                     fieldName ===
                     "consentimento"
                 ) {
 
-                    const element =
+                    const erro =
                         document.getElementById(
-                            "consentimento"
+                            "err-consentimento"
                         );
 
 
-                    ok =
-                        !!(
-                            element &&
-                            element.checked
-                        );
+                    if (erro) {
+
+                        erro.style.display =
+                            "block";
+
+                    }
+
+                }
+
+            },
 
 
-                } else if (
+            clearError: function (
+                fieldName
+            ) {
+
+                const group =
+                    document.getElementById(
+                        `grp-${fieldName}`
+                    );
+
+
+                if (group) {
+
+                    group.classList.remove(
+                        "error"
+                    );
+
+                    return;
+
+                }
+
+
+                if (
                     fieldName ===
-                    "emailResp"
+                    "consentimento"
                 ) {
 
-                    const element =
+                    const erro =
                         document.getElementById(
-                            "emailResp"
+                            "err-consentimento"
                         );
 
 
-                    const value =
-                        element
-                            ? element.value.trim()
-                            : "";
+                    if (erro) {
+
+                        erro.style.display =
+                            "none";
+
+                    }
+
+                }
+
+            }
+
+        };
 
 
-                    ok =
-                        /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-                            .test(
-                                value
+        /* =========================================================
+           RESUMO DO PRÉ-ATENDIMENTO
+        ========================================================= */
+
+        const Summary = {
+
+            render: function () {
+
+                const container =
+                    document.getElementById(
+                        "summaryContainer"
+                    );
+
+
+                if (!container) {
+                    return;
+                }
+
+
+                const get =
+                    id => {
+
+                        const el =
+                            document.getElementById(
+                                id
                             );
 
 
-                } else if (
-                    fieldName ===
-                    "whatsResp"
-                ) {
-
-                    const element =
-                        document.getElementById(
-                            "whatsResp"
-                        );
-
-
-                    const digits =
-                        element
-                            ? element.value.replace(
-                                /\D/g,
-                                ""
-                            )
+                        return el
+                            ? el.value.trim()
                             : "";
 
-
-                    ok =
-                        digits.length >= 10;
+                    };
 
 
-                } else {
-
-                    const target =
-                        document.getElementById(
-                            fieldName
-                        );
+                let motivo =
+                    get("motivo");
 
 
-                    ok =
-                        !!(
-                            target &&
-                            target.value.trim() !== ""
-                        );
+                if (
+                    motivo === "Outro" &&
+                    get("motivoOutro")
+                ) {
+
+                    motivo +=
+                        " — " +
+                        get("motivoOutro");
 
                 }
 
 
-                if (!ok) {
+                let html = "";
 
-                    valid = false;
 
-                    this.showError(
-                        fieldName
-                    );
-
-                } else {
-
-                    this.clearError(
-                        fieldName
-                    );
-
-                }
-
-            }
-        );
-
-
-        return valid;
-
-    },
-
-
-    showError: function (
-        fieldName
-    ) {
-
-        const group =
-            document.getElementById(
-                `grp-${fieldName}`
-            );
-
-
-        if (group) {
-
-            group.classList.add(
-                "error"
-            );
-
-            return;
-
-        }
-
-
-        if (
-            fieldName ===
-            "consentimento"
-        ) {
-
-            const erro =
-                document.getElementById(
-                    "err-consentimento"
-                );
-
-
-            if (erro) {
-
-                erro.style.display =
-                    "block";
-
-            }
-
-        }
-
-    },
-
-
-    clearError: function (
-        fieldName
-    ) {
-
-        const group =
-            document.getElementById(
-                `grp-${fieldName}`
-            );
-
-
-        if (group) {
-
-            group.classList.remove(
-                "error"
-            );
-
-            return;
-
-        }
-
-
-        if (
-            fieldName ===
-            "consentimento"
-        ) {
-
-            const erro =
-                document.getElementById(
-                    "err-consentimento"
-                );
-
-
-            if (erro) {
-
-                erro.style.display =
-                    "none";
-
-            }
-
-        }
-
-    }
-
-};
-
-
-/* =========================================================
-   RESUMO DO PRÉ-ATENDIMENTO
-========================================================= */
-
-const Summary = {
-
-    render: function () {
-
-        const container =
-            document.getElementById(
-                "summaryContainer"
-            );
-
-
-        if (!container) {
-            return;
-        }
-
-
-        const get =
-            id => {
-
-                const el =
-                    document.getElementById(
-                        id
-                    );
-
-
-                return el
-                    ? el.value.trim()
-                    : "";
-
-            };
-
-
-        let motivo =
-            get("motivo");
-
-
-        if (
-            motivo === "Outro" &&
-            get("motivoOutro")
-        ) {
-
-            motivo +=
-                " — " +
-                get("motivoOutro");
-
-        }
-
-
-        let html = "";
-
-
-        html += `
+                html += `
             <div class="summary-block">
 
                 <h4>
@@ -10153,8 +10218,8 @@ const Summary = {
 
                     <dd>
                         ${this.esc(
-                            get("nomeResp")
-                        )}
+                    get("nomeResp")
+                )}
                     </dd>
 
 
@@ -10162,8 +10227,8 @@ const Summary = {
 
                     <dd>
                         ${this.esc(
-                            get("whatsResp")
-                        )}
+                    get("whatsResp")
+                )}
                     </dd>
 
 
@@ -10171,8 +10236,8 @@ const Summary = {
 
                     <dd>
                         ${this.esc(
-                            get("emailResp")
-                        )}
+                    get("emailResp")
+                )}
                     </dd>
 
 
@@ -10180,8 +10245,8 @@ const Summary = {
 
                     <dd>
                         ${this.esc(
-                            get("parentesco")
-                        )}
+                    get("parentesco")
+                )}
                     </dd>
 
                 </dl>
@@ -10190,7 +10255,7 @@ const Summary = {
         `;
 
 
-        html += `
+                html += `
             <div class="summary-block">
 
                 <h4>
@@ -10203,8 +10268,8 @@ const Summary = {
 
                     <dd>
                         ${this.esc(
-                            get("nomeCrianca")
-                        )}
+                    get("nomeCrianca")
+                )}
                     </dd>
 
 
@@ -10212,8 +10277,8 @@ const Summary = {
 
                     <dd>
                         ${this.esc(
-                            get("idade")
-                        )}
+                    get("idade")
+                )}
                         anos
                     </dd>
 
@@ -10223,7 +10288,7 @@ const Summary = {
         `;
 
 
-        html += `
+                html += `
             <div class="summary-block">
 
                 <h4>
@@ -10238,8 +10303,8 @@ const Summary = {
 
                     <dd>
                         ${this.esc(
-                            motivo
-                        )}
+                    motivo
+                )}
                     </dd>
 
 
@@ -10249,8 +10314,8 @@ const Summary = {
 
                     <dd>
                         ${this.esc(
-                            get("tempo")
-                        )}
+                    get("tempo")
+                )}
                     </dd>
 
 
@@ -10259,13 +10324,12 @@ const Summary = {
                     </dt>
 
                     <dd>
-                        ${
+                        ${get("observacoes")
+                        ? this.esc(
                             get("observacoes")
-                                ? this.esc(
-                                    get("observacoes")
-                                )
-                                : "Nenhuma"
-                        }
+                        )
+                        : "Nenhuma"
+                    }
                     </dd>
 
                 </dl>
@@ -10274,316 +10338,316 @@ const Summary = {
         `;
 
 
-        container.innerHTML =
-            html;
+                container.innerHTML =
+                    html;
 
-    },
-
-
-    esc: function (
-        str
-    ) {
-
-        const div =
-            document.createElement(
-                "div"
-            );
+            },
 
 
-        div.textContent =
-            str ||
-            "Não informado";
+            esc: function (
+                str
+            ) {
 
-
-        return div.innerHTML;
-
-    }
-
-};
-
-
-/* =========================================================
-   WHATSAPP DO PRÉ-ATENDIMENTO
-========================================================= */
-
-const WhatsappBuilder = {
-
-    buildUrl: function () {
-
-        const get =
-            id => {
-
-                const el =
-                    document.getElementById(
-                        id
+                const div =
+                    document.createElement(
+                        "div"
                     );
 
 
-                return el
-                    ? el.value.trim()
-                    : "";
-
-            };
+                div.textContent =
+                    str ||
+                    "Não informado";
 
 
-        const getRadio =
-            name => {
+                return div.innerHTML;
 
-                const el =
-                    document.querySelector(
-                        `input[name="${name}"]:checked`
+            }
+
+        };
+
+
+        /* =========================================================
+           WHATSAPP DO PRÉ-ATENDIMENTO
+        ========================================================= */
+
+        const WhatsappBuilder = {
+
+            buildUrl: function () {
+
+                const get =
+                    id => {
+
+                        const el =
+                            document.getElementById(
+                                id
+                            );
+
+
+                        return el
+                            ? el.value.trim()
+                            : "";
+
+                    };
+
+
+                const getRadio =
+                    name => {
+
+                        const el =
+                            document.querySelector(
+                                `input[name="${name}"]:checked`
+                            );
+
+
+                        return el
+                            ? el.value
+                            : "";
+
+                    };
+
+
+                const nomeResp =
+                    get("nomeResp");
+
+
+                const whatsResp =
+                    get("whatsResp");
+
+
+                const emailResp =
+                    get("emailResp");
+
+
+                const parentesco =
+                    get("parentesco");
+
+
+                const nomeCrianca =
+                    get("nomeCrianca");
+
+
+                const idade =
+                    get("idade");
+
+
+                let motivo =
+                    get("motivo");
+
+
+                if (
+                    motivo === "Outro" &&
+                    get("motivoOutro")
+                ) {
+
+                    motivo +=
+                        " - " +
+                        get("motivoOutro");
+
+                }
+
+
+                const tempo =
+                    get("tempo");
+
+
+                const observacoes =
+                    get("observacoes");
+
+
+                const diagnostico =
+                    getRadio(
+                        "diagnostico"
                     );
 
 
-                return el
-                    ? el.value
-                    : "";
-
-            };
-
-
-        const nomeResp =
-            get("nomeResp");
+                const acompanhamento =
+                    getRadio(
+                        "acompanhamento"
+                    );
 
 
-        const whatsResp =
-            get("whatsResp");
+                const lines = [];
 
 
-        const emailResp =
-            get("emailResp");
+                lines.push(
+                    "Olá! Gostaria de solicitar informações sobre um atendimento na Tenda do Cuidar."
+                );
 
 
-        const parentesco =
-            get("parentesco");
+                lines.push("");
 
 
-        const nomeCrianca =
-            get("nomeCrianca");
+                lines.push(
+                    "DADOS DO RESPONSÁVEL"
+                );
 
 
-        const idade =
-            get("idade");
+                lines.push("");
 
 
-        let motivo =
-            get("motivo");
+                lines.push(
+                    "Nome: " +
+                    nomeResp
+                );
 
 
-        if (
-            motivo === "Outro" &&
-            get("motivoOutro")
-        ) {
-
-            motivo +=
-                " - " +
-                get("motivoOutro");
-
-        }
+                lines.push(
+                    "WhatsApp: " +
+                    whatsResp
+                );
 
 
-        const tempo =
-            get("tempo");
+                lines.push(
+                    "E-mail: " +
+                    emailResp
+                );
 
 
-        const observacoes =
-            get("observacoes");
+                lines.push(
+                    "Parentesco: " +
+                    parentesco
+                );
 
 
-        const diagnostico =
-            getRadio(
-                "diagnostico"
-            );
+                lines.push("");
 
 
-        const acompanhamento =
-            getRadio(
-                "acompanhamento"
-            );
+                lines.push(
+                    "DADOS DA CRIANÇA"
+                );
 
 
-        const lines = [];
+                lines.push("");
 
 
-        lines.push(
-            "Olá! Gostaria de solicitar informações sobre um atendimento na Tenda do Cuidar."
+                lines.push(
+                    "Nome: " +
+                    nomeCrianca
+                );
+
+
+                lines.push(
+                    "Idade: " +
+                    idade
+                );
+
+
+                lines.push("");
+
+
+                lines.push(
+                    "INFORMAÇÕES PARA O ATENDIMENTO"
+                );
+
+
+                lines.push("");
+
+
+                lines.push(
+                    "Motivo do contato: " +
+                    motivo
+                );
+
+
+                lines.push(
+                    "Tempo percebido: " +
+                    tempo
+                );
+
+
+                if (acompanhamento) {
+
+                    lines.push(
+                        "Acompanhamento profissional: " +
+                        acompanhamento
+                    );
+
+                }
+
+
+                if (diagnostico) {
+
+                    lines.push(
+                        "Diagnóstico/avaliação profissional: " +
+                        diagnostico
+                    );
+
+                }
+
+
+                if (observacoes) {
+
+                    lines.push("");
+
+
+                    lines.push(
+                        "Observações:"
+                    );
+
+
+                    lines.push(
+                        observacoes
+                    );
+
+                }
+
+
+                lines.push("");
+
+
+                lines.push(
+                    "Gostaria de conversar com a equipe sobre os próximos passos."
+                );
+
+
+                const message =
+                    lines.join("\n");
+
+
+                return (
+                    "https://wa.me/" +
+                    WHATSAPP_NUMBER +
+                    "?text=" +
+                    encodeURIComponent(
+                        message
+                    )
+                );
+
+            }
+
+        };
+
+
+        /* =========================================================
+           INICIAR TUDO
+        ========================================================= */
+
+        document.addEventListener(
+            "DOMContentLoaded",
+            function () {
+
+                Agendamento.init();
+
+                Theme.init();
+
+                ScrollProgressBar.init();
+
+                Header.init();
+
+                MobileMenu.init();
+
+                ScrollReveal.init();
+
+                Faq.init();
+
+                SmoothNav.init();
+
+                WhatsappLinks.init();
+
+                PreForm.init();
+
+            }
         );
-
-
-        lines.push("");
-
-
-        lines.push(
-            "DADOS DO RESPONSÁVEL"
-        );
-
-
-        lines.push("");
-
-
-        lines.push(
-            "Nome: " +
-            nomeResp
-        );
-
-
-        lines.push(
-            "WhatsApp: " +
-            whatsResp
-        );
-
-
-        lines.push(
-            "E-mail: " +
-            emailResp
-        );
-
-
-        lines.push(
-            "Parentesco: " +
-            parentesco
-        );
-
-
-        lines.push("");
-
-
-        lines.push(
-            "DADOS DA CRIANÇA"
-        );
-
-
-        lines.push("");
-
-
-        lines.push(
-            "Nome: " +
-            nomeCrianca
-        );
-
-
-        lines.push(
-            "Idade: " +
-            idade
-        );
-
-
-        lines.push("");
-
-
-        lines.push(
-            "INFORMAÇÕES PARA O ATENDIMENTO"
-        );
-
-
-        lines.push("");
-
-
-        lines.push(
-            "Motivo do contato: " +
-            motivo
-        );
-
-
-        lines.push(
-            "Tempo percebido: " +
-            tempo
-        );
-
-
-        if (acompanhamento) {
-
-            lines.push(
-                "Acompanhamento profissional: " +
-                acompanhamento
-            );
-
-        }
-
-
-        if (diagnostico) {
-
-            lines.push(
-                "Diagnóstico/avaliação profissional: " +
-                diagnostico
-            );
-
-        }
-
-
-        if (observacoes) {
-
-            lines.push("");
-
-
-            lines.push(
-                "Observações:"
-            );
-
-
-            lines.push(
-                observacoes
-            );
-
-        }
-
-
-        lines.push("");
-
-
-        lines.push(
-            "Gostaria de conversar com a equipe sobre os próximos passos."
-        );
-
-
-        const message =
-            lines.join("\n");
-
-
-        return (
-            "https://wa.me/" +
-            WHATSAPP_NUMBER +
-            "?text=" +
-            encodeURIComponent(
-                message
-            )
-        );
-
-    }
-
-};
-
-
-/* =========================================================
-   INICIAR TUDO
-========================================================= */
-
-document.addEventListener(
-    "DOMContentLoaded",
-    function () {
-
-        Agendamento.init();
-
-        Theme.init();
-
-        ScrollProgressBar.init();
-
-        Header.init();
-
-        MobileMenu.init();
-
-        ScrollReveal.init();
-
-        Faq.init();
-
-        SmoothNav.init();
-
-        WhatsappLinks.init();
-
-        PreForm.init();
-
-    }
-);
 
     </script>
 
