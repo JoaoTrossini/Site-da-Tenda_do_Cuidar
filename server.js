@@ -9,6 +9,33 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
 
+app.delete("/admin/limpar-agendamentos", async (req, res) => {
+    try {
+        if (req.headers.authorization !== `Bearer ${process.env.ADMIN_CLEANUP_KEY}`) {
+            return res.status(401).json({
+                sucesso: false,
+                erro: "Não autorizado."
+            });
+        }
+
+        const [result] = await db.query("DELETE FROM agendamentos");
+
+        res.json({
+            sucesso: true,
+            mensagem: "Todos os agendamentos foram apagados.",
+            apagados: result.affectedRows
+        });
+
+    } catch (error) {
+        console.error("Erro ao limpar agendamentos:", error);
+
+        res.status(500).json({
+            sucesso: false,
+            erro: "Erro ao limpar agendamentos."
+        });
+    }
+});
+
 
 // =========================================================
 // CONFIGURAÇÕES
