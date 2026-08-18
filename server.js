@@ -8,71 +8,37 @@ app.use(cors());
 app.use(express.json());
 
 
-// =========================================================
-// CONFIGURAÇÕES
-// =========================================================
-
-const PORT = 3000;
-
-
-// =========================================================
-// CONEXÃO COM MYSQL
-// =========================================================
+// ======================================================
+// CONEXÃO COM O MYSQL
+// ======================================================
 
 const db = mysql.createPool({
     host: "localhost",
     user: "root",
     password: "0422",
     database: "tenda_cuidar",
-
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
 });
 
 
-// =========================================================
-// TESTAR CONEXÃO COM BANCO
-// =========================================================
-
-async function testarBanco() {
-
-    try {
-
-        const connection = await db.getConnection();
-
-        console.log("MySQL conectado com sucesso.");
-
-        connection.release();
-
-    } catch (error) {
-
-        console.error(
-            "Erro ao conectar ao MySQL:",
-            error.message
-        );
-
-    }
-}
-
-
-// =========================================================
-// ROTA PRINCIPAL
-// =========================================================
+// ======================================================
+// TESTE DA API
+// ======================================================
 
 app.get("/", (req, res) => {
 
     res.json({
-        sucesso: true,
         mensagem: "API da Tenda do Cuidar funcionando!"
     });
 
 });
 
 
-// =========================================================
-// PROFISSIONAIS
-// =========================================================
+// ======================================================
+// BUSCAR PROFISSIONAIS
+// ======================================================
 
 app.get("/profissionais", async (req, res) => {
 
@@ -94,14 +60,10 @@ app.get("/profissionais", async (req, res) => {
 
     } catch (error) {
 
-        console.error(
-            "Erro ao buscar profissionais:",
-            error
-        );
+        console.error("Erro ao buscar profissionais:", error);
 
         res.status(500).json({
-            sucesso: false,
-            erro: "Erro ao buscar profissionais."
+            erro: "Erro ao buscar profissionais"
         });
 
     }
@@ -109,88 +71,15 @@ app.get("/profissionais", async (req, res) => {
 });
 
 
-// =========================================================
-// BUSCAR UM PROFISSIONAL
-// =========================================================
-
-app.get("/profissionais/:id", async (req, res) => {
-
-    try {
-
-        const id = Number(req.params.id);
-
-        if (!Number.isInteger(id) || id <= 0) {
-
-            return res.status(400).json({
-                sucesso: false,
-                erro: "ID do profissional inválido."
-            });
-
-        }
-
-        const [rows] = await db.query(`
-            SELECT
-                id,
-                nome,
-                especialidade,
-                ativo,
-                agenda_disponivel
-            FROM profissionais
-            WHERE id = ?
-              AND ativo = TRUE
-            LIMIT 1
-        `, [id]);
-
-        if (rows.length === 0) {
-
-            return res.status(404).json({
-                sucesso: false,
-                erro: "Profissional não encontrado."
-            });
-
-        }
-
-        res.json(rows[0]);
-
-    } catch (error) {
-
-        console.error(
-            "Erro ao buscar profissional:",
-            error
-        );
-
-        res.status(500).json({
-            sucesso: false,
-            erro: "Erro ao buscar profissional."
-        });
-
-    }
-
-});
-
-
-// =========================================================
-// DISPONIBILIDADES DO PROFISSIONAL
-// =========================================================
+// ======================================================
+// BUSCAR DISPONIBILIDADE SEMANAL
+// ======================================================
 
 app.get("/disponibilidades/:profissionalId", async (req, res) => {
 
     try {
 
-        const profissionalId =
-            Number(req.params.profissionalId);
-
-        if (
-            !Number.isInteger(profissionalId) ||
-            profissionalId <= 0
-        ) {
-
-            return res.status(400).json({
-                sucesso: false,
-                erro: "ID do profissional inválido."
-            });
-
-        }
+        const profissionalId = req.params.profissionalId;
 
         const [rows] = await db.query(`
             SELECT
@@ -199,14 +88,11 @@ app.get("/disponibilidades/:profissionalId", async (req, res) => {
                 dia_semana,
                 hora_inicio,
                 hora_fim,
-                duracao_minutos,
-                ativo
+                duracao_minutos
             FROM disponibilidades
             WHERE profissional_id = ?
               AND ativo = TRUE
-            ORDER BY
-                dia_semana,
-                hora_inicio
+            ORDER BY dia_semana, hora_inicio
         `, [profissionalId]);
 
         res.json(rows);
@@ -219,8 +105,7 @@ app.get("/disponibilidades/:profissionalId", async (req, res) => {
         );
 
         res.status(500).json({
-            sucesso: false,
-            erro: "Erro ao buscar disponibilidades."
+            erro: "Erro ao buscar disponibilidades"
         });
 
     }
@@ -228,355 +113,194 @@ app.get("/disponibilidades/:profissionalId", async (req, res) => {
 });
 
 
-// =========================================================
-// HORÁRIOS DE UMA DATA ESPECÍFICA
-// =========================================================
+// ======================================================
+// GERAR HORÁRIOS PARA UMA DATA
+// ======================================================
 
-app.get(
-    "/horarios/:profissionalId/:data",
-    async (req, res) => {
+app.get("/horarios/:profissionalId/:data", async (req, res) => {
 
-        try {
+    try {
 
-            const profissionalId =
-                Number(req.params.profissionalId);
+        const profissionalId =
+            req.params.profissionalId;
 
-            const data =
-                req.params.data;
+        const data =
+            req.params.data;
 
 
-            // -------------------------------------------------
-            // VALIDAR PROFISSIONAL
-            // -------------------------------------------------
+        // --------------------------------------------------
+        // Descobrir o dia da semana
+        // --------------------------------------------------
 
-            if (
-                !Number.isInteger(profissionalId) ||
-                profissionalId <= 0
-            ) {
+        const dataObj = new Date(data + "T00:00:00");
 
-                return res.status(400).json({
-                    sucesso: false,
-                    erro: "Profissional inválido."
-                });
+        let diaSemana = dataObj.getDay();
 
-            }
+        // JavaScript:
+        // 0 = domingo
+        // 1 = segunda
+        // 2 = terça
+        // 3 = quarta
+        // 4 = quinta
+        // 5 = sexta
+        // 6 = sábado
 
 
-            // -------------------------------------------------
-            // VALIDAR DATA
-            // -------------------------------------------------
+        // --------------------------------------------------
+        // Buscar a configuração daquele dia
+        // --------------------------------------------------
 
-            if (!validarData(data)) {
+        const [disponibilidades] = await db.query(`
+            SELECT
+                hora_inicio,
+                hora_fim,
+                duracao_minutos
+            FROM disponibilidades
+            WHERE profissional_id = ?
+              AND dia_semana = ?
+              AND ativo = TRUE
+            ORDER BY hora_inicio
+        `, [
+            profissionalId,
+            diaSemana
+        ]);
 
-                return res.status(400).json({
-                    sucesso: false,
-                    erro: "Data inválida. Use o formato YYYY-MM-DD."
-                });
 
-            }
+        // Se não atende nesse dia
+        if (disponibilidades.length === 0) {
 
-
-            // -------------------------------------------------
-            // VERIFICAR SE PROFISSIONAL EXISTE
-            // -------------------------------------------------
-
-            const [profissional] = await db.query(`
-                SELECT
-                    id,
-                    nome,
-                    ativo,
-                    agenda_disponivel
-                FROM profissionais
-                WHERE id = ?
-                LIMIT 1
-            `, [profissionalId]);
-
-
-            if (profissional.length === 0) {
-
-                return res.status(404).json({
-                    sucesso: false,
-                    erro: "Profissional não encontrado."
-                });
-
-            }
-
-
-            if (!profissional[0].ativo) {
-
-                return res.json([]);
-
-            }
-
-
-            if (!profissional[0].agenda_disponivel) {
-
-                return res.json([]);
-
-            }
-
-
-            // -------------------------------------------------
-            // DESCOBRIR DIA DA SEMANA
-            // -------------------------------------------------
-
-            const diaSemana =
-                obterDiaSemana(data);
-
-
-            // Domingo = 0
-            // Segunda = 1
-            // Terça = 2
-            // Quarta = 3
-            // Quinta = 4
-            // Sexta = 5
-            // Sábado = 6
-
-            if (
-                diaSemana === 0 ||
-                diaSemana === 6
-            ) {
-
-                return res.json([]);
-
-            }
-
-
-            // -------------------------------------------------
-            // BUSCAR DISPONIBILIDADES
-            // -------------------------------------------------
-
-            const [disponibilidades] =
-                await db.query(`
-
-                    SELECT
-                        hora_inicio,
-                        hora_fim,
-                        duracao_minutos
-
-                    FROM disponibilidades
-
-                    WHERE profissional_id = ?
-                      AND dia_semana = ?
-                      AND ativo = TRUE
-
-                    ORDER BY hora_inicio
-
-                `, [
-                    profissionalId,
-                    diaSemana
-                ]);
-
-
-            if (disponibilidades.length === 0) {
-
-                return res.json([]);
-
-            }
-
-
-            // -------------------------------------------------
-            // BUSCAR AGENDAMENTOS DO DIA
-            // -------------------------------------------------
-
-            const [agendamentos] =
-                await db.query(`
-
-                    SELECT
-                        hora_inicio,
-                        hora_fim,
-                        status
-
-                    FROM agendamentos
-
-                    WHERE profissional_id = ?
-                      AND data_consulta = ?
-
-                `, [
-                    profissionalId,
-                    data
-                ]);
-
-
-            // -------------------------------------------------
-            // GERAR HORÁRIOS
-            // -------------------------------------------------
-
-            const horarios = [];
-
-
-            disponibilidades.forEach(
-                disponibilidade => {
-
-                    const inicioDisponibilidade =
-                        converterParaMinutos(
-                            disponibilidade.hora_inicio
-                        );
-
-
-                    const fimDisponibilidade =
-                        converterParaMinutos(
-                            disponibilidade.hora_fim
-                        );
-
-
-                    const duracao =
-                        Number(
-                            disponibilidade.duracao_minutos
-                        ) || 50;
-
-
-                    let inicio =
-                        inicioDisponibilidade;
-
-
-                    while (
-                        inicio + duracao <=
-                        fimDisponibilidade
-                    ) {
-
-                        const fim =
-                            inicio + duracao;
-
-
-                        const horaInicio =
-                            minutosParaHora(inicio);
-
-
-                        const horaFim =
-                            minutosParaHora(fim);
-
-
-                        // -------------------------------------
-                        // VERIFICAR CONFLITO
-                        // -------------------------------------
-
-                        const ocupado =
-                            agendamentos.some(
-                                agendamento => {
-
-                                    // Cancelado não ocupa horário
-                                    if (
-                                        String(
-                                            agendamento.status
-                                        ).toLowerCase() ===
-                                        "cancelado"
-                                    ) {
-
-                                        return false;
-
-                                    }
-
-
-                                    const agInicio =
-                                        converterParaMinutos(
-                                            agendamento.hora_inicio
-                                        );
-
-
-                                    const agFim =
-                                        converterParaMinutos(
-                                            agendamento.hora_fim
-                                        );
-
-
-                                    return (
-                                        inicio < agFim &&
-                                        fim > agInicio
-                                    );
-
-                                }
-                            );
-
-
-                        horarios.push({
-
-                            inicio:
-                                horaInicio,
-
-                            fim:
-                                horaFim,
-
-                            disponivel:
-                                !ocupado
-
-                        });
-
-
-                        inicio += duracao;
-
-                    }
-
-                }
-            );
-
-
-            // -------------------------------------------------
-            // REMOVER DUPLICIDADES
-            // -------------------------------------------------
-
-            const horariosUnicos =
-                Array.from(
-
-                    new Map(
-
-                        horarios.map(
-                            horario => [
-                                `${horario.inicio}-${horario.fim}`,
-                                horario
-                            ]
-                        )
-
-                    ).values()
-
-                );
-
-
-            // -------------------------------------------------
-            // ORDENAR HORÁRIOS
-            // -------------------------------------------------
-
-            horariosUnicos.sort(
-                (a, b) =>
-                    converterParaMinutos(a.inicio) -
-                    converterParaMinutos(b.inicio)
-            );
-
-
-            res.json(horariosUnicos);
-
-
-        } catch (error) {
-
-            console.error(
-                "Erro ao buscar horários:",
-                error
-            );
-
-            res.status(500).json({
-
-                sucesso: false,
-
-                erro:
-                    "Erro ao buscar horários."
-
-            });
+            return res.json([]);
 
         }
 
+
+        // --------------------------------------------------
+        // Buscar agendamentos já existentes
+        // --------------------------------------------------
+
+        const [agendamentos] = await db.query(`
+            SELECT
+                hora_inicio,
+                hora_fim
+            FROM agendamentos
+            WHERE profissional_id = ?
+              AND data_consulta = ?
+              AND status IN ('reservado', 'confirmado')
+        `, [
+            profissionalId,
+            data
+        ]);
+
+
+        // --------------------------------------------------
+        // Criar horários
+        // --------------------------------------------------
+
+        const horarios = [];
+
+
+        disponibilidades.forEach(disponibilidade => {
+
+            let inicio =
+                converterParaMinutos(
+                    disponibilidade.hora_inicio
+                );
+
+            const fim =
+                converterParaMinutos(
+                    disponibilidade.hora_fim
+                );
+
+            const duracao =
+                disponibilidade.duracao_minutos;
+
+
+            while (inicio + duracao <= fim) {
+
+                const horarioInicio =
+                    minutosParaHora(inicio);
+
+                const horarioFim =
+                    minutosParaHora(
+                        inicio + duracao
+                    );
+
+
+                // --------------------------------------------------
+                // Verificar se já está ocupado
+                // --------------------------------------------------
+
+                const ocupado =
+                    agendamentos.some(agendamento => {
+
+                        const agendamentoInicio =
+                            converterParaMinutos(
+                                agendamento.hora_inicio
+                            );
+
+                        const agendamentoFim =
+                            converterParaMinutos(
+                                agendamento.hora_fim
+                            );
+
+
+                        return (
+                            inicio < agendamentoFim &&
+                            inicio + duracao > agendamentoInicio
+                        );
+
+                    });
+
+
+                horarios.push({
+
+                    inicio: horarioInicio,
+
+                    fim: horarioFim,
+
+                    disponivel: !ocupado
+
+                });
+
+
+                inicio += duracao;
+
+            }
+
+        });
+
+
+        res.json(horarios);
+
+
+    } catch (error) {
+
+        console.error(
+            "Erro ao gerar horários:",
+            error
+        );
+
+        res.status(500).json({
+
+            erro: "Erro ao buscar horários"
+
+        });
+
     }
-);
+
+});
 
 
-// =========================================================
-// REALIZAR AGENDAMENTO
-// =========================================================
+// ======================================================
+// CRIAR AGENDAMENTO
+// ======================================================
 
 app.post("/agendamentos", async (req, res) => {
 
     try {
 
         const {
+
             profissional_id,
             data_consulta,
             hora_inicio,
@@ -586,12 +310,13 @@ app.post("/agendamentos", async (req, res) => {
             email_responsavel,
             nome_crianca,
             observacoes
+
         } = req.body;
 
 
-        // -------------------------------------------------
-        // VALIDAÇÕES
-        // -------------------------------------------------
+        // --------------------------------------------------
+        // Validação
+        // --------------------------------------------------
 
         if (
             !profissional_id ||
@@ -605,8 +330,6 @@ app.post("/agendamentos", async (req, res) => {
 
             return res.status(400).json({
 
-                sucesso: false,
-
                 erro:
                     "Preencha todos os campos obrigatórios."
 
@@ -615,178 +338,75 @@ app.post("/agendamentos", async (req, res) => {
         }
 
 
-        if (!validarData(data_consulta)) {
+        // --------------------------------------------------
+        // Verificar se o horário já foi ocupado
+        // --------------------------------------------------
 
-            return res.status(400).json({
+        const [existente] = await db.query(`
+            SELECT id
+            FROM agendamentos
+            WHERE profissional_id = ?
+              AND data_consulta = ?
+              AND hora_inicio = ?
+              AND status IN ('reservado', 'confirmado')
+            LIMIT 1
+        `, [
 
-                sucesso: false,
+            profissional_id,
+            data_consulta,
+            hora_inicio
 
-                erro: "Data inválida."
-
-            });
-
-        }
-
-
-        // -------------------------------------------------
-        // VERIFICAR PROFISSIONAL
-        // -------------------------------------------------
-
-        const [profissional] =
-            await db.query(`
-
-                SELECT
-                    id,
-                    nome,
-                    ativo,
-                    agenda_disponivel
-
-                FROM profissionais
-
-                WHERE id = ?
-
-                LIMIT 1
-
-            `, [
-                Number(profissional_id)
-            ]);
+        ]);
 
 
-        if (profissional.length === 0) {
-
-            return res.status(404).json({
-
-                sucesso: false,
-
-                erro:
-                    "Profissional não encontrado."
-
-            });
-
-        }
-
-
-        if (!profissional[0].ativo) {
-
-            return res.status(400).json({
-
-                sucesso: false,
-
-                erro:
-                    "Este profissional está inativo."
-
-            });
-
-        }
-
-
-        if (!profissional[0].agenda_disponivel) {
-
-            return res.status(400).json({
-
-                sucesso: false,
-
-                erro:
-                    "A agenda deste profissional está indisponível."
-
-            });
-
-        }
-
-
-        // -------------------------------------------------
-        // VERIFICAR SE O HORÁRIO JÁ ESTÁ OCUPADO
-        // -------------------------------------------------
-
-        const [conflitos] =
-            await db.query(`
-
-                SELECT
-                    id
-
-                FROM agendamentos
-
-                WHERE profissional_id = ?
-                  AND data_consulta = ?
-                  AND status <> 'cancelado'
-
-                  AND hora_inicio < ?
-                  AND hora_fim > ?
-
-                LIMIT 1
-
-            `, [
-
-                Number(profissional_id),
-
-                data_consulta,
-
-                hora_fim,
-
-                hora_inicio
-
-            ]);
-
-
-        if (conflitos.length > 0) {
+        if (existente.length > 0) {
 
             return res.status(409).json({
 
-                sucesso: false,
-
                 erro:
-                    "Este horário acabou de ser ocupado. Escolha outro horário."
+                    "Este horário acabou de ser reservado por outra pessoa."
 
             });
 
         }
 
 
-        // -------------------------------------------------
-        // INSERIR AGENDAMENTO
-        // -------------------------------------------------
+        // --------------------------------------------------
+        // Criar agendamento
+        // --------------------------------------------------
 
-        const [resultado] =
-            await db.query(`
+        const [resultado] = await db.query(`
 
-                INSERT INTO agendamentos (
+            INSERT INTO agendamentos (
 
-                    profissional_id,
-                    data_consulta,
-                    hora_inicio,
-                    hora_fim,
-                    nome_responsavel,
-                    whatsapp_responsavel,
-                    email_responsavel,
-                    nome_crianca,
-                    observacoes,
-                    status
-
-                )
-
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'agendado')
-
-            `, [
-
-                Number(profissional_id),
-
+                profissional_id,
                 data_consulta,
-
                 hora_inicio,
-
                 hora_fim,
-
                 nome_responsavel,
-
                 whatsapp_responsavel,
-
-                email_responsavel || null,
-
+                email_responsavel,
                 nome_crianca,
+                observacoes,
+                status
 
-                observacoes || null
+            )
 
-            ]);
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'reservado')
+
+        `, [
+
+            profissional_id,
+            data_consulta,
+            hora_inicio,
+            hora_fim,
+            nome_responsavel,
+            whatsapp_responsavel,
+            email_responsavel || null,
+            nome_crianca,
+            observacoes || null
+
+        ]);
 
 
         res.status(201).json({
@@ -796,8 +416,7 @@ app.post("/agendamentos", async (req, res) => {
             mensagem:
                 "Agendamento realizado com sucesso!",
 
-            id:
-                resultado.insertId
+            id: resultado.insertId
 
         });
 
@@ -809,10 +428,7 @@ app.post("/agendamentos", async (req, res) => {
             error
         );
 
-
         res.status(500).json({
-
-            sucesso: false,
 
             erro:
                 "Erro ao realizar agendamento."
@@ -824,176 +440,55 @@ app.post("/agendamentos", async (req, res) => {
 });
 
 
-// =========================================================
-// FUNÇÃO: VALIDAR DATA
-// =========================================================
-
-function validarData(data) {
-
-    if (
-        typeof data !== "string" ||
-        !/^\d{4}-\d{2}-\d{2}$/.test(data)
-    ) {
-
-        return false;
-
-    }
-
-
-    const [ano, mes, dia] =
-        data.split("-").map(Number);
-
-
-    const dataObj =
-        new Date(
-            ano,
-            mes - 1,
-            dia
-        );
-
-
-    return (
-        dataObj.getFullYear() === ano &&
-        dataObj.getMonth() === mes - 1 &&
-        dataObj.getDate() === dia
-    );
-
-}
-
-
-// =========================================================
-// FUNÇÃO: DIA DA SEMANA
-// =========================================================
-
-function obterDiaSemana(data) {
-
-    const [ano, mes, dia] =
-        data.split("-").map(Number);
-
-
-    const dataObj =
-        new Date(
-            ano,
-            mes - 1,
-            dia
-        );
-
-
-    return dataObj.getDay();
-
-}
-
-
-// =========================================================
-// FUNÇÃO: HH:MM → MINUTOS
-// =========================================================
+// ======================================================
+// FUNÇÕES AUXILIARES
+// ======================================================
 
 function converterParaMinutos(hora) {
-
-    if (!hora) return 0;
-
 
     const partes =
         String(hora)
             .substring(0, 5)
             .split(":");
 
-
-    const horas =
-        Number(partes[0]);
-
-
-    const minutos =
-        Number(partes[1]);
-
-
     return (
-        horas * 60 +
-        minutos
+        parseInt(partes[0], 10) * 60 +
+        parseInt(partes[1], 10)
     );
 
 }
 
-
-// =========================================================
-// FUNÇÃO: MINUTOS → HH:MM
-// =========================================================
 
 function minutosParaHora(minutos) {
 
     const horas =
         Math.floor(minutos / 60);
 
-
-    const mins =
+    const minutosRestantes =
         minutos % 60;
 
 
     return (
+
         String(horas).padStart(2, "0") +
         ":" +
-        String(mins).padStart(2, "0")
+        String(minutosRestantes).padStart(2, "0")
+
     );
 
 }
 
 
-// =========================================================
-// TRATAMENTO DE ERROS DO EXPRESS
-// =========================================================
+// ======================================================
+// INICIAR SERVIDOR
+// ======================================================
 
-app.use((req, res) => {
+const PORT = process.env.PORT || 3000;
 
-    res.status(404).json({
+app.listen(PORT, () => {
 
-        sucesso: false,
-
-        erro:
-            "Rota não encontrada."
-
-    });
+    console.log(
+        `API funcionando em http://localhost:${PORT}`
+    );
 
 });
-
-
-// =========================================================
-// INICIAR SERVIDOR
-// =========================================================
-
-async function iniciarServidor() {
-
-    await testarBanco();
-
-
-    app.listen(
-        PORT,
-        () => {
-
-            console.log("");
-            console.log(
-                "========================================"
-            );
-
-            console.log(
-                " Tenda do Cuidar - API"
-            );
-
-            console.log(
-                "========================================"
-            );
-
-            console.log(
-                `API funcionando em http://localhost:${PORT}`
-            );
-
-            console.log(
-                "========================================"
-            );
-
-        }
-    );
-
-}
-
-
-iniciarServidor();
