@@ -6316,6 +6316,59 @@
                     botao.dataset.data =
                         dataString;
 
+                        if (
+    profissional &&
+    profissional.value
+) {
+
+    buscarDisponibilidadeData(
+        profissional.value,
+        dataString
+    ).then(horarios => {
+
+        if (!horarios.length) {
+
+            botao.classList.add(
+                "indisponivel"
+            );
+
+            return;
+        }
+
+        const disponiveis =
+            horarios.filter(
+                horario =>
+                    horario.disponivel === true
+            ).length;
+
+        if (
+            disponiveis === horarios.length
+        ) {
+
+            botao.classList.add(
+                "disponivel"
+            );
+
+        } else if (
+            disponiveis > 0
+        ) {
+
+            botao.classList.add(
+                "parcial"
+            );
+
+        } else {
+
+            botao.classList.add(
+                "indisponivel"
+            );
+
+        }
+
+    });
+
+}
+
 
                     /* =================================================
                        DATA DE HOJE
