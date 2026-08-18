@@ -1,18 +1,13 @@
 const express = require("express");
 const cors = require("cors");
 const mysql = require("mysql2/promise");
-
 const path = require("path");
-
-app.use(cors());
-app.use(express.json());
-
-app.use(express.static(__dirname));
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use(express.static(__dirname));
 
 
 // =========================================================
