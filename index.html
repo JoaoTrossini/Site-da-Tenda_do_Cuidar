@@ -3947,6 +3947,11 @@
             visibility: hidden;
         }
 
+        .calendario-dia.parcial {
+            background: #fff0b3;
+            color: #8a6500;
+        }
+
 
         .dia-calendario {
             position: relative;
@@ -6190,7 +6195,6 @@
             /* =========================================================
                CALENDÁRIO
             ========================================================= */
-
             renderizarCalendario: function () {
 
                 const container =
@@ -6201,6 +6205,11 @@
                 const titulo =
                     document.getElementById(
                         "mesAtual"
+                    );
+
+                const profissional =
+                    document.getElementById(
+                        "profissional"
                     );
 
 
@@ -6269,12 +6278,16 @@
                 ) {
 
                     const vazio =
-                        document.createElement("div");
+                        document.createElement(
+                            "div"
+                        );
 
                     vazio.className =
                         "calendario-dia vazio";
 
-                    container.appendChild(vazio);
+                    container.appendChild(
+                        vazio
+                    );
 
                 }
 
@@ -6298,76 +6311,31 @@
 
 
                     const dataString =
-                        obterDataLocal(dataObj);
+                        obterDataLocal(
+                            dataObj
+                        );
 
 
                     const botao =
-                        document.createElement("button");
+                        document.createElement(
+                            "button"
+                        );
 
 
-                    botao.type = "button";
+                    botao.type =
+                        "button";
+
 
                     botao.className =
                         "calendario-dia";
 
+
                     botao.textContent =
                         dia;
 
+
                     botao.dataset.data =
                         dataString;
-
-                        if (
-    profissional &&
-    profissional.value
-) {
-
-    buscarDisponibilidadeData(
-        profissional.value,
-        dataString
-    ).then(horarios => {
-
-        if (!horarios.length) {
-
-            botao.classList.add(
-                "indisponivel"
-            );
-
-            return;
-        }
-
-        const disponiveis =
-            horarios.filter(
-                horario =>
-                    horario.disponivel === true
-            ).length;
-
-        if (
-            disponiveis === horarios.length
-        ) {
-
-            botao.classList.add(
-                "disponivel"
-            );
-
-        } else if (
-            disponiveis > 0
-        ) {
-
-            botao.classList.add(
-                "parcial"
-            );
-
-        } else {
-
-            botao.classList.add(
-                "indisponivel"
-            );
-
-        }
-
-    });
-
-}
 
 
                     /* =================================================
@@ -6393,19 +6361,6 @@
                         );
 
 
-                    if (
-                        dataComparacao < hoje
-                    ) {
-
-                        botao.disabled = true;
-
-                        botao.classList.add(
-                            "indisponivel"
-                        );
-
-                    }
-
-
                     /* =================================================
                        FIM DE SEMANA
                     ================================================= */
@@ -6415,15 +6370,121 @@
 
 
                     if (
+                        dataComparacao < hoje ||
                         diaSemana === 0 ||
                         diaSemana === 6
                     ) {
 
-                        botao.disabled = true;
+                        botao.disabled =
+                            true;
 
                         botao.classList.add(
                             "indisponivel"
                         );
+
+                    }
+
+
+                    /* =================================================
+                       VERIFICAR DISPONIBILIDADE
+                    ================================================= */
+
+                    if (
+                        profissional &&
+                        profissional.value &&
+                        !botao.disabled
+                    ) {
+
+                        buscarDisponibilidadeData(
+                            profissional.value,
+                            dataString
+                        )
+                            .then(
+                                horarios => {
+
+                                    if (
+                                        !Array.isArray(
+                                            horarios
+                                        ) ||
+                                        horarios.length === 0
+                                    ) {
+
+                                        botao.classList.remove(
+                                            "disponivel",
+                                            "parcial"
+                                        );
+
+                                        botao.classList.add(
+                                            "indisponivel"
+                                        );
+
+                                        return;
+                                    }
+
+
+                                    const quantidadeDisponiveis =
+                                        horarios.filter(
+                                            horario =>
+                                                horario.disponivel === true
+                                        ).length;
+
+
+                                    if (
+                                        quantidadeDisponiveis ===
+                                        horarios.length
+                                    ) {
+
+                                        botao.classList.remove(
+                                            "indisponivel",
+                                            "parcial"
+                                        );
+
+                                        botao.classList.add(
+                                            "disponivel"
+                                        );
+
+                                    } else if (
+                                        quantidadeDisponiveis > 0
+                                    ) {
+
+                                        botao.classList.remove(
+                                            "disponivel",
+                                            "indisponivel"
+                                        );
+
+                                        botao.classList.add(
+                                            "parcial"
+                                        );
+
+                                    } else {
+
+                                        botao.classList.remove(
+                                            "disponivel",
+                                            "parcial"
+                                        );
+
+                                        botao.classList.add(
+                                            "indisponivel"
+                                        );
+
+                                    }
+
+                                }
+                            )
+                            .catch(
+                                erro => {
+
+                                    console.error(
+                                        "Erro ao verificar data:",
+                                        erro
+                                    );
+
+                                    botao.classList.add(
+                                        "indisponivel"
+                                    );
+
+                                }
+                            );
 
                     }
 
