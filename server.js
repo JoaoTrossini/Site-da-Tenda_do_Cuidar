@@ -1,4 +1,4 @@
-require("dotenv").config();
+﻿require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
@@ -12,9 +12,8 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
 
-
 // =========================================================
-// CONFIGURAÇÕES
+// CONFIGURAÃ‡Ã•ES
 // =========================================================
 
 const PORT = 3000;
@@ -23,50 +22,17 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const JWT_SECRET = process.env.JWT_SECRET;
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-const JWT_SECRET = process.env.JWT_SECRET;
-
-console.log("ADMIN EMAIL:", JSON.stringify(ADMIN_EMAIL));
-console.log("ADMIN PASSWORD CONFIGURADA:", !!ADMIN_PASSWORD);
-console.log("ADMIN PASSWORD TAMANHO:", ADMIN_PASSWORD ? ADMIN_PASSWORD.length : 0);
-console.log("JWT CONFIGURADO:", !!JWT_SECRET);
-console.log(
-    "JWT_SECRET:",
-    JWT_SECRET
-        ? "CONFIGURADO"
-        : "NAO CONFIGURADO"
-);
-
-if (!ADMIN_EMAIL || !ADMIN_PASSWORD || !JWT_SECRET) {
-    console.error("ERRO: ADMIN_EMAIL, ADMIN_PASSWORD ou JWT_SECRET não configurado no .env");
-    process.exit(1);
-}
-
 app.post("/admin/login", (req, res) => {
-    const email = String(req.body?.email || "").trim();
-    const password = String(req.body?.password || "");
+    const { email, password } = req.body;
 
-    const emailOk = email === ADMIN_EMAIL;
-    const passwordOk = password === ADMIN_PASSWORD;
-
-    console.log("LOGIN:", {
-        emailRecebido: email,
-        emailOk,
-        tamanhoSenhaRecebida: password.length,
-        tamanhoSenhaEsperada: ADMIN_PASSWORD?.length,
-        passwordOk
-    });
-
-    if (!emailOk || !passwordOk) {
+    if (
+        !email ||
+        !password ||
+        email !== ADMIN_EMAIL ||
+        password !== ADMIN_PASSWORD
+    ) {
         return res.status(401).json({
-            erro: "E-mail ou senha inválidos.",
-            debug: {
-                emailOk,
-                passwordOk,
-                tamanhoSenhaRecebida: password.length,
-                tamanhoSenhaEsperada: ADMIN_PASSWORD?.length
-            }
+            erro: "E-mail ou senha invÃ¡lidos."
         });
     }
 
@@ -81,14 +47,89 @@ app.post("/admin/login", (req, res) => {
         }
     );
 
-    return res.json({
+    res.json({
         sucesso: true,
         token
     });
 });
 
+function autenticarAdmin(req, res, next) {
+    const cabecalho = req.headers.authorization;
+
+    if (!cabecalho || !cabecalho.startsWith("Bearer ")) {
+        return res.status(401).json({
+            erro: "Token não informado."
+        });
+    }
+
+    const token = cabecalho.substring(7);
+
+    try {
+        const dados = jwt.verify(token, JWT_SECRET);
+
+        if (dados.tipo !== "admin") {
+            return res.status(403).json({
+                erro: "Acesso negado."
+            });
+        }
+
+        req.admin = dados;
+        next();
+
+    } catch (error) {
+        return res.status(401).json({
+            erro: "Token inválido ou expirado."
+        });
+    }
+}
+
+app.get(
+    "/admin/agendamentos",
+    autenticarAdmin,
+    async (req, res) => {
+
+        try {
+
+            const [agendamentos] = await db.query(`
+                SELECT
+                    a.id,
+                    DATE_FORMAT(a.data_consulta, '%Y-%m-%d') AS data_consulta,
+                    TIME_FORMAT(a.hora_inicio, '%H:%i') AS hora_inicio,
+                    TIME_FORMAT(a.hora_fim, '%H:%i') AS hora_fim,
+                    a.nome_responsavel,
+                    a.whatsapp_responsavel,
+                    a.email_responsavel,
+                    a.nome_crianca,
+                    a.status,
+                    p.nome AS profissional
+                FROM agendamentos a
+                INNER JOIN profissionais p
+                    ON p.id = a.profissional_id
+                ORDER BY
+                    a.data_consulta ASC,
+                    a.hora_inicio ASC
+            `);
+
+            res.json({
+                agendamentos
+            });
+
+        } catch (error) {
+
+            console.error(
+                "Erro ao carregar agendamentos:",
+                error
+            );
+
+            res.status(500).json({
+                erro: "Erro ao carregar a agenda."
+            });
+        }
+    }
+);
+
 // =========================================================
-// CONEXÃO COM MYSQL
+// CONEXÃƒO COM MYSQL
 // =========================================================
 
 const db = mysql.createPool({
@@ -109,7 +150,7 @@ const db = mysql.createPool({
 
 
 // =========================================================
-// TESTAR CONEXÃO COM BANCO
+// TESTAR CONEXÃƒO COM BANCO
 // =========================================================
 
 async function testarBanco() {
@@ -195,7 +236,7 @@ app.get("/profissionais/:id", async (req, res) => {
 
             return res.status(400).json({
                 sucesso: false,
-                erro: "ID do profissional inválido."
+                erro: "ID do profissional invÃ¡lido."
             });
 
         }
@@ -217,7 +258,7 @@ app.get("/profissionais/:id", async (req, res) => {
 
             return res.status(404).json({
                 sucesso: false,
-                erro: "Profissional não encontrado."
+                erro: "Profissional nÃ£o encontrado."
             });
 
         }
@@ -259,7 +300,7 @@ app.get("/disponibilidades/:profissionalId", async (req, res) => {
 
             return res.status(400).json({
                 sucesso: false,
-                erro: "ID do profissional inválido."
+                erro: "ID do profissional invÃ¡lido."
             });
 
         }
@@ -301,7 +342,7 @@ app.get("/disponibilidades/:profissionalId", async (req, res) => {
 
 
 // =========================================================
-// HORÁRIOS DE UMA DATA ESPECÍFICA
+// HORÃRIOS DE UMA DATA ESPECÃFICA
 // =========================================================
 
 app.get(
@@ -328,7 +369,7 @@ app.get(
 
                 return res.status(400).json({
                     sucesso: false,
-                    erro: "Profissional inválido."
+                    erro: "Profissional invÃ¡lido."
                 });
 
             }
@@ -342,7 +383,7 @@ app.get(
 
                 return res.status(400).json({
                     sucesso: false,
-                    erro: "Data inválida. Use o formato YYYY-MM-DD."
+                    erro: "Data invÃ¡lida. Use o formato YYYY-MM-DD."
                 });
 
             }
@@ -368,7 +409,7 @@ app.get(
 
                 return res.status(404).json({
                     sucesso: false,
-                    erro: "Profissional não encontrado."
+                    erro: "Profissional nÃ£o encontrado."
                 });
 
             }
@@ -398,11 +439,11 @@ app.get(
 
             // Domingo = 0
             // Segunda = 1
-            // Terça = 2
+            // TerÃ§a = 2
             // Quarta = 3
             // Quinta = 4
             // Sexta = 5
-            // Sábado = 6
+            // SÃ¡bado = 6
 
             if (
                 diaSemana === 0 ||
@@ -471,7 +512,7 @@ app.get(
 
 
             // -------------------------------------------------
-            // GERAR HORÁRIOS
+            // GERAR HORÃRIOS
             // -------------------------------------------------
 
             const horarios = [];
@@ -527,7 +568,7 @@ app.get(
                             agendamentos.some(
                                 agendamento => {
 
-                                    // Cancelado não ocupa horário
+                                    // Cancelado nÃ£o ocupa horÃ¡rio
                                     if (
                                         String(
                                             agendamento.status
@@ -605,7 +646,7 @@ app.get(
 
 
             // -------------------------------------------------
-            // ORDENAR HORÁRIOS
+            // ORDENAR HORÃRIOS
             // -------------------------------------------------
 
             horariosUnicos.sort(
@@ -621,7 +662,7 @@ app.get(
         } catch (error) {
 
             console.error(
-                "Erro ao buscar horários:",
+                "Erro ao buscar horÃ¡rios:",
                 error
             );
 
@@ -630,7 +671,7 @@ app.get(
                 sucesso: false,
 
                 erro:
-                    "Erro ao buscar horários."
+                    "Erro ao buscar horÃ¡rios."
 
             });
 
@@ -662,7 +703,7 @@ app.post("/agendamentos", async (req, res) => {
 
 
         // -------------------------------------------------
-        // VALIDAÇÕES
+        // VALIDAÃ‡Ã•ES
         // -------------------------------------------------
 
         if (
@@ -680,7 +721,7 @@ app.post("/agendamentos", async (req, res) => {
                 sucesso: false,
 
                 erro:
-                    "Preencha todos os campos obrigatórios."
+                    "Preencha todos os campos obrigatÃ³rios."
 
             });
 
@@ -693,7 +734,7 @@ app.post("/agendamentos", async (req, res) => {
 
                 sucesso: false,
 
-                erro: "Data inválida."
+                erro: "Data invÃ¡lida."
 
             });
 
@@ -731,7 +772,7 @@ app.post("/agendamentos", async (req, res) => {
                 sucesso: false,
 
                 erro:
-                    "Profissional não encontrado."
+                    "Profissional nÃ£o encontrado."
 
             });
 
@@ -745,7 +786,7 @@ app.post("/agendamentos", async (req, res) => {
                 sucesso: false,
 
                 erro:
-                    "Este profissional está inativo."
+                    "Este profissional estÃ¡ inativo."
 
             });
 
@@ -759,7 +800,7 @@ app.post("/agendamentos", async (req, res) => {
                 sucesso: false,
 
                 erro:
-                    "A agenda deste profissional está indisponível."
+                    "A agenda deste profissional estÃ¡ indisponÃ­vel."
 
             });
 
@@ -767,7 +808,7 @@ app.post("/agendamentos", async (req, res) => {
 
 
         // -------------------------------------------------
-        // VERIFICAR SE O HORÁRIO JÁ ESTÁ OCUPADO
+        // VERIFICAR SE O HORÃRIO JÃ ESTÃ OCUPADO
         // -------------------------------------------------
 
         const [conflitos] =
@@ -807,7 +848,7 @@ app.post("/agendamentos", async (req, res) => {
                 sucesso: false,
 
                 erro:
-                    "Este horário acabou de ser ocupado. Escolha outro horário."
+                    "Este horÃ¡rio acabou de ser ocupado. Escolha outro horÃ¡rio."
 
             });
 
@@ -897,7 +938,7 @@ app.post("/agendamentos", async (req, res) => {
 
 
 // =========================================================
-// FUNÇÃO: VALIDAR DATA
+// FUNÃ‡ÃƒO: VALIDAR DATA
 // =========================================================
 
 function validarData(data) {
@@ -934,7 +975,7 @@ function validarData(data) {
 
 
 // =========================================================
-// FUNÇÃO: DIA DA SEMANA
+// FUNÃ‡ÃƒO: DIA DA SEMANA
 // =========================================================
 
 function obterDiaSemana(data) {
@@ -957,7 +998,7 @@ function obterDiaSemana(data) {
 
 
 // =========================================================
-// FUNÇÃO: HH:MM → MINUTOS
+// FUNÃ‡ÃƒO: HH:MM â†’ MINUTOS
 // =========================================================
 
 function converterParaMinutos(hora) {
@@ -988,7 +1029,7 @@ function converterParaMinutos(hora) {
 
 
 // =========================================================
-// FUNÇÃO: MINUTOS → HH:MM
+// FUNÃ‡ÃƒO: MINUTOS â†’ HH:MM
 // =========================================================
 
 function minutosParaHora(minutos) {
@@ -1021,7 +1062,7 @@ app.use((req, res) => {
         sucesso: false,
 
         erro:
-            "Rota não encontrada."
+            "Rota nÃ£o encontrada."
 
     });
 
@@ -1069,3 +1110,4 @@ async function iniciarServidor() {
 
 
 iniciarServidor();
+
