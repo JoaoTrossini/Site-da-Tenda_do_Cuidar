@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 
 <head>
@@ -4225,6 +4225,7 @@
                 <a href="#avaliacao">Avaliação</a>
                 <a href="#duvidas">Dúvidas</a>
                 <a href="#contato">Contato</a>
+                <a href="admin.html">ADM</a>
             <div class="header-actions">
                 <button class="theme-toggle" id="themeToggle" type="button" aria-label="Ativar modo escuro"
                     title="Ativar modo escuro">
@@ -10463,4 +10464,49 @@ Agendamento realizado pelo site da Tenda do Cuidar.`;
 </body>
 
 </html>
+
+
+        /* CORREÇÃO DO FORMULÁRIO DE AGENDAMENTO */
+
+        .dados-agendamento {
+            display: block;
+        }
+
+        .dados-agendamento .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 20px;
+            align-items: start;
+        }
+
+        .dados-agendamento .campo-agendamento {
+            position: relative;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 0;
+        }
+
+        .dados-agendamento .campo-agendamento input,
+        .dados-agendamento .campo-agendamento textarea,
+        .dados-agendamento .campo-agendamento select {
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .dados-agendamento > .campo-agendamento {
+            display: block;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .dados-agendamento > .campo-agendamento textarea {
+            min-height: 110px;
+        }
+
+        @media (max-width: 700px) {
+            .dados-agendamento .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
 
