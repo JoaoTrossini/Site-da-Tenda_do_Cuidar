@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const mysql = require("mysql2/promise");
 const path = require("path");
+const jwt = require("jsonwebtoken");
 
 const app = express();
 
@@ -15,6 +16,40 @@ app.use(express.static(__dirname));
 
 const PORT = 3000;
 
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+const JWT_SECRET = process.env.JWT_SECRET;
+
+app.post("/admin/login", (req, res) => {
+    const { email, password } = req.body;
+
+    if (
+        !email ||
+        !password ||
+        email !== ADMIN_EMAIL ||
+        password !== ADMIN_PASSWORD
+    ) {
+        return res.status(401).json({
+            erro: "E-mail ou senha inválidos."
+        });
+    }
+
+    const token = jwt.sign(
+        {
+            tipo: "admin",
+            email: ADMIN_EMAIL
+        },
+        JWT_SECRET,
+        {
+            expiresIn: "8h"
+        }
+    );
+
+    res.json({
+        sucesso: true,
+        token
+    });
+});
 
 // =========================================================
 // CONEXÃO COM MYSQL
