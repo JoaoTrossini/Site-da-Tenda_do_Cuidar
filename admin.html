@@ -1,0 +1,291 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ADM | Tenda do Cuidar</title>
+</head>
+
+<body>
+
+    <main>
+        <section id="loginArea">
+            <h1>Área administrativa</h1>
+
+            <form id="loginForm">
+                <label>
+                    E-mail
+                    <input type="email" id="adminEmail" required>
+                </label>
+
+                <label>
+                    Senha
+                    <input type="password" id="adminPassword" required>
+                </label>
+
+                <button type="submit">Entrar</button>
+
+                <p id="loginError"></p>
+            </form>
+        </section>
+
+        <section id="agendaArea" hidden>
+            <h1>Agenda de consultas</h1>
+
+            <button id="logoutBtn" type="button">
+                Sair
+            </button>
+
+            <div id="agendaContainer">
+                Carregando agenda...
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const API_URL = window.location.origin;
+
+        const loginArea =
+            document.getElementById("loginArea");
+
+        const agendaArea =
+            document.getElementById("agendaArea");
+
+        const loginForm =
+            document.getElementById("loginForm");
+
+        const loginError =
+            document.getElementById("loginError");
+
+        const agendaContainer =
+            document.getElementById("agendaContainer");
+
+        const logoutBtn =
+            document.getElementById("logoutBtn");
+
+
+        loginForm.addEventListener("submit", async function (event) {
+
+            event.preventDefault();
+
+            loginError.textContent = "";
+
+            const email =
+                document.getElementById("adminEmail").value.trim();
+
+            const password =
+                document.getElementById("adminPassword").value;
+
+            try {
+
+                const resposta =
+                    await fetch(
+                        API_URL + "/admin/login",
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify({
+                                email,
+                                password
+                            })
+                        }
+                    );
+
+                const dados =
+                    await resposta.json();
+
+                if (!resposta.ok) {
+                    throw new Error(
+                        dados.erro || "Não foi possível entrar."
+                    );
+                }
+
+                localStorage.setItem(
+                    "adminToken",
+                    dados.token
+                );
+
+                mostrarAgenda();
+
+            } catch (error) {
+
+                loginError.textContent =
+                    error.message;
+
+            }
+
+        });
+
+
+        async function mostrarAgenda() {
+
+            const token =
+                localStorage.getItem("adminToken");
+
+            if (!token) {
+                return;
+            }
+
+            loginArea.hidden = true;
+            agendaArea.hidden = false;
+
+            try {
+
+                const resposta =
+                    await fetch(
+                        API_URL + "/admin/agendamentos",
+                        {
+                            headers: {
+                                "Authorization":
+                                    "Bearer " + token
+                            }
+                        }
+                    );
+
+                const dados =
+                    await resposta.json();
+
+                if (!resposta.ok) {
+                    throw new Error(
+                        dados.erro || "Erro ao carregar a agenda."
+                    );
+                }
+
+                renderizarAgenda(
+                    dados.agendamentos || []
+                );
+
+            } catch (error) {
+
+                agendaContainer.textContent =
+                    error.message;
+
+            }
+
+        }
+
+
+        function renderizarAgenda(agendamentos) {
+
+            if (!agendamentos.length) {
+
+                agendaContainer.innerHTML =
+                    "<p>Nenhum agendamento encontrado.</p>";
+
+                return;
+
+            }
+
+            agendaContainer.innerHTML =
+                agendamentos.map(
+                    agendamento => `
+                        <article>
+                            <h2>
+                                ${escapar(
+                                    agendamento.nome_crianca
+                                )}
+                            </h2>
+
+                            <p>
+                                <strong>Data:</strong>
+                                ${escapar(
+                                    agendamento.data_consulta
+                                )}
+                            </p>
+
+                            <p>
+                                <strong>Horário:</strong>
+                                ${escapar(
+                                    agendamento.hora_inicio
+                                )}
+                                -
+                                ${escapar(
+                                    agendamento.hora_fim
+                                )}
+                            </p>
+
+                            <p>
+                                <strong>Profissional:</strong>
+                                ${escapar(
+                                    agendamento.profissional
+                                )}
+                            </p>
+
+                            <p>
+                                <strong>Responsável:</strong>
+                                ${escapar(
+                                    agendamento.nome_responsavel
+                                )}
+                            </p>
+
+                            <p>
+                                <strong>WhatsApp:</strong>
+                                ${escapar(
+                                    agendamento.whatsapp_responsavel
+                                )}
+                            </p>
+
+                            <p>
+                                <strong>E-mail:</strong>
+                                ${escapar(
+                                    agendamento.email_responsavel
+                                )}
+                            </p>
+
+                            <p>
+                                <strong>Status:</strong>
+                                ${escapar(
+                                    agendamento.status
+                                )}
+                            </p>
+                        </article>
+                    `
+                ).join("");
+
+        }
+
+
+        function escapar(valor) {
+
+            const div =
+                document.createElement("div");
+
+            div.textContent =
+                valor ?? "";
+
+            return div.innerHTML;
+
+        }
+
+
+        logoutBtn.addEventListener(
+            "click",
+            function () {
+
+                localStorage.removeItem(
+                    "adminToken"
+                );
+
+                agendaArea.hidden = true;
+                loginArea.hidden = false;
+
+                loginForm.reset();
+
+            }
+        );
+
+
+        if (
+            localStorage.getItem("adminToken")
+        ) {
+
+            mostrarAgenda();
+
+        }
+
+    </script>
+
+</body>
+</html>
